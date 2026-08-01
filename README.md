@@ -70,6 +70,32 @@ Open your browser and navigate to: **[http://127.0.0.1:8000](http://127.0.0.1:80
 
 ---
 
+## 🦙 Ollama Setup Guide (For AI Insights & MediRAG Chat)
+
+While the application operates using rule-based fallbacks if Ollama is not present, setting up **Ollama** enables local LLM AI insights and document Q&A via LLaMA 3.2.
+
+### Step 1: Install Ollama
+- **Windows / macOS**: Download and run the installer from **[ollama.com/download](https://ollama.com/download)**.
+- **Linux**: Run the installation script in your terminal:
+  ```bash
+  curl -fsSL https://ollama.com/install.sh | sh
+  ```
+
+### Step 2: Download the LLaMA 3.2 Model
+Open your terminal/command prompt and pull the `llama3.2` model:
+```bash
+ollama pull llama3.2
+```
+
+### Step 3: Verify Ollama is Running
+Check that the Ollama service is active (runs automatically in background or via terminal):
+```bash
+ollama run llama3.2 "Hello"
+```
+The Digital Twin app will automatically connect to Ollama at `http://127.0.0.1:11434` for LLM generation.
+
+---
+
 ## 📂 Repository Structure
 
 ```
