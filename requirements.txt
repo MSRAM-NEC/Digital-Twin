@@ -1,0 +1,31 @@
+# Web Framework & API
+Flask>=2.0.0
+requests>=2.28.0
+python-dotenv>=1.0.0
+nest-asyncio>=1.5.0
+
+# Phase 2 Telegram Integration
+python-telegram-bot>=20.0
+
+# Scientific & Simulation Engine
+scipy>=1.9.0
+numpy>=1.23.5
+pandas>=1.5.3
+joblib>=1.2.0
+
+# ML / DL Models (Optional for Phase 2 activity prediction)
+scikit-learn>=1.2.2
+xgboost>=1.7.6
+lightgbm>=3.3.5
+tensorflow>=2.9.0
+
+# Chemistry & LLM (Optional)
+# rdkit
+# ollama
+
+# Phase 3 MediRAG (Optional)
+# langchain
+# langchain-community
+# langchain-ollama
+# chromadb
+# sentence-transformers

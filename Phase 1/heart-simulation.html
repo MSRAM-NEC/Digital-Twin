@@ -1,0 +1,1796 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heart Simulation — Anatomical</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+    :root {
+      --bg-0: #06080f;
+      --bg-1: #0c1120;
+      --bg-2: #121a2e;
+      --bg-3: #1a2540;
+      --bg-card: rgba(14, 20, 38, 0.75);
+      --bg-input: rgba(6, 8, 18, 0.6);
+      --border-1: rgba(255, 255, 255, 0.04);
+      --border-2: rgba(255, 255, 255, 0.07);
+      --border-3: rgba(255, 255, 255, 0.12);
+      --t-1: #f0f4fc;
+      --t-2: #a0b0cc;
+      --t-3: #6b7fa0;
+      --t-4: #3d4f6e;
+      --blue: #4f8eff;
+      --purple: #a37bff;
+      --cyan: #22d3ee;
+      --pink: #f472b6;
+      --green: #34d399;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 14px;
+      --transition: 200ms cubic-bezier(.4, 0, .2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg-0);
+      color: var(--t-1);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 50%, rgba(248, 113, 113, 0.06) 0%, transparent 60%),
+        radial-gradient(ellipse at 15% 15%, rgba(79, 142, 255, .04) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 70%, rgba(163, 123, 255, .03) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--t-4);
+      border-radius: 3px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      max-width: 1360px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border-1);
+    }
+
+    .logo {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      color: var(--t-1);
+    }
+
+    .logo span {
+      color: var(--t-4);
+      font-weight: 400;
+    }
+
+    .mode-tabs {
+      display: flex;
+      gap: 2px;
+      background: var(--bg-2);
+      border-radius: var(--r-sm);
+      padding: 3px;
+    }
+
+    .mode-tab {
+      font-family: 'Inter', sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      color: var(--t-3);
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .mode-tab:hover {
+      color: var(--t-2);
+      background: rgba(255, 255, 255, .03);
+    }
+
+    .mode-tab.active {
+      color: var(--t-1);
+      background: var(--bg-3);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, .3);
+    }
+
+    /* ── LAYOUT ── */
+    .wrap {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 20px 28px;
+      width: 100%;
+      max-width: 1360px;
+    }
+
+    /* ── HEART STAGE ── */
+    .stage {
+      position: relative;
+      flex: 0 0 auto;
+    }
+
+    #heartCanvas {
+      display: block;
+      filter: drop-shadow(0 0 35px rgba(180, 0, 0, 0.4)) drop-shadow(0 0 80px rgba(120, 0, 0, 0.15));
+    }
+
+    .bpm-ring {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: .15em;
+      color: var(--green);
+      text-shadow: 0 0 10px rgba(52, 211, 153, .4);
+      pointer-events: none;
+      text-align: center;
+    }
+
+    .bpm-ring .val {
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1;
+      display: block;
+    }
+
+    /* ── PANELS ── */
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      flex: 0 0 230px;
+    }
+
+    .panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-1);
+      border-radius: var(--r-lg);
+      padding: 16px;
+      backdrop-filter: blur(10px);
+      transition: var(--transition);
+    }
+
+    .panel:hover {
+      border-color: var(--border-2);
+    }
+
+    .ptitle {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      color: var(--t-4);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-1);
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+    }
+
+    /* ECG */
+    .ecg-wrap {
+      height: 56px;
+      background: var(--bg-input);
+      border: 1px solid rgba(52, 211, 153, .1);
+      border-radius: var(--r-sm);
+      overflow: hidden;
+    }
+
+    #ecgCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* STATS GRID */
+    .sg {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .sb {
+      background: var(--bg-input);
+      border: 1px solid var(--border-1);
+      border-radius: var(--r-sm);
+      padding: 10px 8px;
+      text-align: center;
+    }
+
+    .sv {
+      font-size: 20px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--t-1);
+    }
+
+    .sn {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: .06em;
+      color: var(--t-4);
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* PHASE BOX */
+    .phase-box {
+      background: var(--bg-input);
+      border-left: 3px solid var(--pink);
+      border-radius: var(--r-sm);
+      padding: 10px 12px;
+      font-size: 11.5px;
+      color: var(--t-3);
+      min-height: 44px;
+      transition: border-color .3s;
+    }
+
+    .pname {
+      color: var(--pink);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 3px;
+    }
+
+    /* SLIDERS */
+    .crow {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ci label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--t-3);
+      margin-bottom: 5px;
+    }
+
+    .ci label span {
+      color: var(--t-1);
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--bg-3);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--blue);
+      box-shadow: 0 0 8px rgba(79, 142, 255, .4);
+      transition: transform .15s;
+    }
+
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
+      background: #6ba3ff;
+    }
+
+    /* STATE BUTTONS */
+    .sbts {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .sbt {
+      background: var(--bg-input);
+      border: 1px solid var(--border-2);
+      color: var(--t-3);
+      font-family: 'Inter', sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 8px 12px;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      transition: var(--transition);
+      text-align: left;
+    }
+
+    .sbt:hover {
+      background: rgba(79, 142, 255, .06);
+      border-color: rgba(79, 142, 255, .2);
+      color: var(--t-2);
+    }
+
+    .sbt.active {
+      background: rgba(79, 142, 255, .1);
+      border-color: rgba(79, 142, 255, .3);
+      color: var(--blue);
+      box-shadow: 0 0 10px rgba(79, 142, 255, .1);
+    }
+
+    /* ANATOMY LIST */
+    .alist {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .aitem {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--t-3);
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: var(--r-sm);
+      transition: var(--transition);
+    }
+
+    .aitem:hover {
+      color: var(--t-1);
+      background: rgba(79, 142, 255, .06);
+    }
+
+    .adot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* CSV PANEL */
+    #csvPanel {
+      display: none;
+      width: 100%;
+      max-width: 1100px;
+      padding: 0 20px 24px;
+    }
+
+    .csv-area {
+      background: var(--bg-card);
+      border: 1px solid var(--border-1);
+      border-radius: var(--r-lg);
+      padding: 20px;
+      backdrop-filter: blur(10px);
+    }
+
+    .csv-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      color: var(--t-4);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-1);
+      padding-bottom: 8px;
+      margin-bottom: 16px;
+    }
+
+    .csv-cols {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .csv-col {
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .csv-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--t-4);
+      letter-spacing: .06em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    textarea {
+      width: 100%;
+      height: 140px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-2);
+      color: var(--t-1);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      border-radius: var(--r-sm);
+      padding: 12px;
+      resize: vertical;
+      outline: none;
+      transition: var(--transition);
+    }
+
+    textarea:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(79, 142, 255, .1);
+    }
+
+    .csv-btns {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .cbtn {
+      font-family: 'Inter', sans-serif;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      transition: var(--transition);
+      border: none;
+    }
+
+    .cbtn-primary {
+      background: linear-gradient(135deg, var(--blue), var(--purple));
+      color: #fff;
+    }
+
+    .cbtn-primary:hover {
+      box-shadow: 0 0 20px rgba(79, 142, 255, .25);
+      transform: translateY(-1px);
+    }
+
+    .cbtn-sec {
+      background: var(--bg-input);
+      border: 1px solid var(--border-2);
+      color: var(--t-3);
+    }
+
+    .cbtn-sec:hover {
+      border-color: var(--blue);
+      color: var(--t-1);
+    }
+
+    .csv-chart {
+      margin-top: 16px;
+      background: var(--bg-input);
+      border: 1px solid var(--border-1);
+      border-radius: var(--r-sm);
+      overflow: hidden;
+    }
+
+    #csvChart {
+      display: block;
+      width: 100%;
+    }
+
+    .csv-status {
+      font-size: 11px;
+      color: var(--t-4);
+      margin-top: 10px;
+      min-height: 20px;
+    }
+
+    .playhead-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .playhead-bar input[type=range] {
+      flex: 1;
+    }
+
+    .ph-label {
+      font-size: 11px;
+      color: var(--t-4);
+      white-space: nowrap;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .demo-note {
+      position: absolute;
+      bottom: 4px;
+      right: 12px;
+      font-size: 10px;
+      color: var(--t-4);
+      pointer-events: none;
+    }
+
+    /* Drug Simulation Sync Banner */
+    .drug-sync-bar {
+      display: none;
+      width: 100%;
+      max-width: 1360px;
+      padding: 10px 24px;
+      background: var(--bg-card);
+      border: 1px solid rgba(52, 211, 153, 0.15);
+      border-radius: var(--r-md);
+      margin-top: 8px;
+      align-items: center;
+      gap: 16px;
+      backdrop-filter: blur(10px);
+      animation: syncFadeIn .4s ease;
+    }
+
+    .drug-sync-bar.active {
+      display: flex;
+    }
+
+    @keyframes syncFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .sync-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: syncPulse 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes syncPulse {
+
+      0%,
+      100% {
+        opacity: 1;
+        box-shadow: 0 0 6px rgba(52, 211, 153, .5);
+      }
+
+      50% {
+        opacity: .4;
+        box-shadow: 0 0 2px rgba(52, 211, 153, .2);
+      }
+    }
+
+    .sync-label {
+      color: var(--green);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+
+    .sync-drug {
+      color: var(--t-1);
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .sync-dose {
+      color: var(--t-3);
+      font-size: 12px;
+    }
+
+    .sync-warnings {
+      color: var(--amber);
+      font-size: 11px;
+      margin-left: auto;
+    }
+
+    .sync-back {
+      padding: 5px 14px;
+      border-radius: var(--r-sm);
+      cursor: pointer;
+      background: rgba(52, 211, 153, .08);
+      border: 1px solid rgba(52, 211, 153, .2);
+      color: var(--green);
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      transition: var(--transition);
+      text-decoration: none;
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    .sync-back:hover {
+      background: rgba(52, 211, 153, .15);
+      box-shadow: 0 0 12px rgba(52, 211, 153, .15);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .wrap {
+        gap: 12px;
+        padding: 12px;
+      }
+
+      .col {
+        flex: 0 0 200px;
+      }
+
+      header {
+        padding: 10px 14px;
+      }
+
+      .mode-tab {
+        padding: 5px 10px;
+        font-size: 10.5px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">🫀 Drug–Heart <span>Digital Twin | Viz</span></div>
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tab-demo" onclick="setMode('demo')">▶ Demo</button>
+      <button class="mode-tab" id="tab-csv" onclick="setMode('csv')">⬆ CSV Data</button>
+      <button class="mode-tab" id="tab-drug" onclick="setMode('drug')">💊 Drug Sim</button>
+    </div>
+  </header>
+
+  <!-- Drug Simulation Sync Banner -->
+  <div class="drug-sync-bar" id="drugSyncBar">
+    <div class="sync-dot"></div>
+    <span class="sync-label">Drug Sim Active</span>
+    <span class="sync-drug" id="syncDrugName">—</span>
+    <span class="sync-dose" id="syncDose">—</span>
+    <span class="sync-warnings" id="syncWarnings"></span>
+    <a class="sync-back" href="/" target="_top">← Dashboard</a>
+  </div>
+
+  <!-- DEMO MODE -->
+  <div class="wrap" id="demoPanel">
+
+    <!-- LEFT -->
+    <div class="col">
+      <!-- vitals -->
+      <div class="panel">
+        <div class="ptitle">Vital Signs</div>
+        <div style="text-align:center;padding:6px 0 10px;">
+          <div
+            style="font-family:'JetBrains Mono',monospace;font-size:42px;font-weight:800;line-height:1;color:var(--green);text-shadow:0 0 15px rgba(52,211,153,.5);"
+            id="bpmBig">72</div>
+          <div style="font-size:10px;font-weight:600;letter-spacing:.25em;color:var(--t-4);margin-top:4px;">BPM</div>
+        </div>
+        <div class="ecg-wrap"><canvas id="ecgCanvas"></canvas></div>
+      </div>
+
+      <!-- anatomy -->
+      <div class="panel">
+        <div class="ptitle">Anatomy</div>
+        <div class="alist">
+          <div class="aitem" data-p="lv">
+            <div class="adot" style="background:var(--red)"></div>Left Ventricle
+          </div>
+          <div class="aitem" data-p="rv">
+            <div class="adot" style="background:var(--blue)"></div>Right Ventricle
+          </div>
+          <div class="aitem" data-p="la">
+            <div class="adot" style="background:var(--pink)"></div>Left Atrium
+          </div>
+          <div class="aitem" data-p="ra">
+            <div class="adot" style="background:var(--cyan)"></div>Right Atrium
+          </div>
+          <div class="aitem" data-p="ao">
+            <div class="adot" style="background:var(--amber)"></div>Aorta
+          </div>
+          <div class="aitem" data-p="pa">
+            <div class="adot" style="background:var(--purple)"></div>Pulm. Artery
+          </div>
+          <div class="aitem" data-p="mv">
+            <div class="adot" style="background:#526987"></div>Mitral Valve
+          </div>
+          <div class="aitem" data-p="av">
+            <div class="adot" style="background:#657b98"></div>Aortic Valve
+          </div>
+          <div class="aitem" data-p="tv">
+            <div class="adot" style="background:#495f7c"></div>Tricuspid Valve
+          </div>
+          <div class="aitem" data-p="sep">
+            <div class="adot" style="background:var(--t-4)"></div>Septum
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HEART -->
+    <div class="stage">
+      <canvas id="heartCanvas" width="520" height="540"></canvas>
+      <div class="bpm-ring">
+        <span class="val" id="bpmRing">72</span> BPM
+      </div>
+      <div class="demo-note" id="demoNote"></div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="col">
+      <!-- controls -->
+      <div class="panel" style="display: none;">
+        <div class="ptitle">Controls</div>
+        <div class="crow">
+          <div class="ci">
+            <label>Heart Rate <span id="hrV">72</span> BPM</label>
+            <input type="range" id="hrS" min="40" max="200" value="72">
+          </div>
+          <div class="ci">
+            <label>Contractility <span id="conV">100</span>%</label>
+            <input type="range" id="conS" min="20" max="150" value="100">
+          </div>
+          <div class="ci">
+            <label>Sys. Pressure <span id="bpV">120</span> mmHg</label>
+            <input type="range" id="bpS" min="60" max="200" value="120">
+          </div>
+        </div>
+      </div>
+
+      <!-- states -->
+      <div class="panel" style="display: none;">
+        <div class="ptitle">Cardiac States</div>
+        <div class="sbts">
+          <button class="sbt active" id="st-normal" onclick="setState('normal')">Normal Sinus</button>
+          <button class="sbt" id="st-tachy" onclick="setState('tachy')">Tachycardia</button>
+          <button class="sbt" id="st-brady" onclick="setState('brady')">Bradycardia</button>
+          <button class="sbt" id="st-exercise" onclick="setState('exercise')">Exercise</button>
+          <button class="sbt" id="st-afib" onclick="setState('afib')">Atrial Fibrillation</button>
+          <button class="sbt" id="st-auto" onclick="setState('auto')"
+            style="border-color:rgba(52,211,153,.3);color:var(--green);">⟳ Auto BPM 60–120</button>
+        </div>
+      </div>
+
+      <!-- chamber pressures -->
+      <div class="panel">
+        <div class="ptitle">Chamber Pressures</div>
+        <div class="sg">
+          <div class="sb">
+            <div class="sv" id="lvP">120</div>
+            <div class="sn">LV mmHg</div>
+          </div>
+          <div class="sb">
+            <div class="sv" id="rvP">25</div>
+            <div class="sn">RV mmHg</div>
+          </div>
+          <div class="sb">
+            <div class="sv" id="laP">12</div>
+            <div class="sn">LA mmHg</div>
+          </div>
+          <div class="sb">
+            <div class="sv" id="raP">8</div>
+            <div class="sn">RA mmHg</div>
+          </div>
+        </div>
+        <div class="phase-box" id="phaseBox">
+          <div class="pname">Diastole</div>
+          Chambers filling. Ventricles relaxed.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CSV MODE -->
+  <div id="csvPanel">
+    <div class="csv-area">
+      <div class="csv-title">CSV Cardiac Data Playback</div>
+      <div class="csv-cols">
+        <div class="csv-col">
+          <div class="csv-label">Paste CSV Data</div>
+          <textarea id="csvInput"
+            placeholder="time_ms,bpm,systolic_bp,contractility&#10;0,72,120,100&#10;500,75,122,100&#10;1000,80,125,105&#10;1500,88,130,110&#10;2000,95,135,115&#10;2500,100,138,118&#10;3000,105,140,120&#10;3500,110,142,122&#10;4000,105,140,118&#10;4500,98,136,115&#10;5000,90,130,110&#10;5500,82,125,105&#10;6000,75,120,100&#10;6500,72,118,98&#10;7000,70,115,97"></textarea>
+          <div class="csv-btns">
+            <button class="cbtn cbtn-primary" onclick="loadCSV()">▶ Load & Play</button>
+            <button class="cbtn cbtn-sec" onclick="loadSampleCSV()">Sample Data</button>
+            <button class="cbtn cbtn-sec" onclick="stopCSV()">■ Stop</button>
+          </div>
+          <div class="csv-status" id="csvStatus">Ready — paste CSV with columns: time_ms, bpm, systolic_bp,
+            contractility</div>
+        </div>
+        <div class="csv-col">
+          <div class="csv-label">BPM Timeline</div>
+          <div class="csv-chart"><canvas id="csvChart" height="130"></canvas></div>
+          <div class="playhead-bar">
+            <span class="ph-label">0s</span>
+            <input type="range" id="playhead" min="0" max="100" value="0" style="flex:1" oninput="seekCSV(this.value)">
+            <span class="ph-label" id="phEnd">0s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════
+    const HC = document.getElementById('heartCanvas');
+    const hx = HC.getContext('2d');
+    const EC = document.getElementById('ecgCanvas');
+    const ex = EC.getContext('2d');
+    const W = HC.width, H = HC.height;
+    const CX = W / 2 - 10, CY = H / 2 + 10;
+
+    let bpm = 72, contractility = 1.0, sysBP = 120, qtIntervalMs = 400;
+    let cardiacState = 'normal';
+    let highlighted = null;
+    let heartPhase = 0;
+    let startTime = null;
+    let animId = null;
+
+    // Auto BPM mode
+    let autoBPM = false;
+    let autoBPMPhase = 0;
+
+    // CSV mode
+    let csvMode = false;
+    let csvRows = [];
+    let csvStartTime = null;
+    let csvLooping = true;
+    let csvTotalMs = 0;
+
+    // ECG
+    const ECG_LEN = 220;
+    let ecgBuf = new Array(ECG_LEN).fill(0);
+    let ecgPos = 0;
+    let ecgPhase = 0;
+
+    // Smooth pressure
+    let sp = { lv: 120, rv: 25, la: 12, ra: 8 };
+
+    // ═══════════════════════════════════════════
+    //  ECG RESIZE
+    // ═══════════════════════════════════════════
+    function resizeECG() {
+      const dpr = window.devicePixelRatio || 1;
+      EC.width = EC.offsetWidth * dpr;
+      EC.height = EC.offsetHeight * dpr;
+      ex.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resizeECG);
+    resizeECG();
+
+    // ═══════════════════════════════════════════
+    //  CONTROLS
+    // ═══════════════════════════════════════════
+    document.getElementById('hrS').addEventListener('input', e => {
+      bpm = +e.target.value;
+      document.getElementById('hrV').textContent = bpm;
+      document.getElementById('bpmBig').textContent = bpm;
+      document.getElementById('bpmRing').textContent = bpm;
+    });
+    document.getElementById('conS').addEventListener('input', e => {
+      contractility = e.target.value / 100;
+      document.getElementById('conV').textContent = e.target.value;
+    });
+    document.getElementById('bpS').addEventListener('input', e => {
+      sysBP = +e.target.value;
+      document.getElementById('bpV').textContent = sysBP;
+    });
+
+    function setState(s) {
+      cardiacState = s;
+      document.querySelectorAll('.sbt').forEach(b => b.classList.remove('active'));
+      document.getElementById('st-' + s).classList.add('active');
+      autoBPM = (s === 'auto');
+      const presets = {
+        normal: { hr: 72, con: 100, bp: 120 },
+        tachy: { hr: 140, con: 90, bp: 130 },
+        brady: { hr: 45, con: 110, bp: 115 },
+        exercise: { hr: 162, con: 140, bp: 155 },
+        afib: { hr: 110, con: 75, bp: 125 },
+        auto: { hr: 72, con: 100, bp: 120 }
+      };
+      const p = presets[s] || presets.normal;
+      document.getElementById('hrS').value = p.hr;
+      document.getElementById('conS').value = p.con;
+      document.getElementById('bpS').value = p.bp;
+      bpm = p.hr; contractility = p.con / 100; sysBP = p.bp; qtIntervalMs = 400;
+      document.getElementById('hrV').textContent = bpm;
+      document.getElementById('conV').textContent = p.con;
+      document.getElementById('bpV').textContent = sysBP;
+      document.getElementById('bpmBig').textContent = bpm;
+      document.getElementById('bpmRing').textContent = bpm;
+    }
+
+    // ═══════════════════════════════════════════
+    //  MODE SWITCHING
+    // ═══════════════════════════════════════════
+    let drugSyncMode = false;
+    let drugSyncInterval = null;
+
+    function setMode(m) {
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + m).classList.add('active');
+      document.getElementById('demoPanel').style.display = (m === 'demo' || m === 'drug') ? 'flex' : 'none';
+      document.getElementById('csvPanel').style.display = m === 'csv' ? 'block' : 'none';
+      document.getElementById('drugSyncBar').classList.toggle('active', m === 'drug');
+      csvMode = (m === 'csv');
+      drugSyncMode = (m === 'drug');
+      if (m === 'demo') { csvStartTime = null; stopDrugSync(); }
+      if (m === 'csv') { drawCSVChart(); stopDrugSync(); }
+      if (m === 'drug') { startDrugSync(); }
+    }
+
+    // ═══════════════════════════════════════════
+    //  AUTO BPM  (60–120 sinusoidal)
+    // ═══════════════════════════════════════════
+    function tickAutoBPM(dt) {
+      if (!autoBPM) return;
+      autoBPMPhase += dt * 0.00008; // ~12s full cycle
+      bpm = Math.round(60 + 30 * (0.5 + 0.5 * Math.sin(autoBPMPhase * Math.PI * 2)));
+      document.getElementById('hrS').value = bpm;
+      document.getElementById('hrV').textContent = bpm;
+      document.getElementById('bpmBig').textContent = bpm;
+      document.getElementById('bpmRing').textContent = bpm;
+    }
+
+    // ═══════════════════════════════════════════
+    //  CSV
+    // ═══════════════════════════════════════════
+    function loadSampleCSV() {
+      document.getElementById('csvInput').value =
+        `time_ms,bpm,systolic_bp,contractility
+0,62,115,95
+400,64,116,96
+800,68,118,98
+1200,72,120,100
+1600,78,123,104
+2000,85,127,108
+2400,93,132,113
+2800,100,137,118
+3200,108,141,122
+3600,114,144,125
+4000,118,146,127
+4400,120,148,128
+4800,119,147,127
+5200,115,145,125
+5600,110,142,122
+6000,103,138,118
+6400,95,133,114
+6800,87,128,109
+7200,80,124,105
+7600,74,121,101
+8000,70,118,99
+8400,67,116,97
+8800,64,115,96
+9200,62,114,95
+9600,61,113,95
+10000,60,112,94`;
+      loadCSV();
+    }
+
+    function loadCSV() {
+      const raw = document.getElementById('csvInput').value.trim();
+      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) {
+        document.getElementById('csvStatus').textContent = 'Error: need header + data rows.'; return;
+      }
+      const header = lines[0].toLowerCase().split(',').map(h => h.trim());
+      const ti = header.indexOf('time_ms'), bi = header.indexOf('bpm'),
+        si = header.indexOf('systolic_bp'), ci = header.indexOf('contractility');
+      if (ti < 0 || bi < 0) { document.getElementById('csvStatus').textContent = 'Error: need time_ms and bpm columns.'; return; }
+
+      csvRows = lines.slice(1).map(l => {
+        const c = l.split(',');
+        return {
+          t: +c[ti], bpm: +c[bi],
+          bp: si >= 0 ? +c[si] : 120,
+          con: ci >= 0 ? +c[ci] / 100 : 1.0
+        };
+      }).filter(r => !isNaN(r.t) && !isNaN(r.bpm));
+
+      if (csvRows.length < 2) { document.getElementById('csvStatus').textContent = 'Error: need at least 2 data rows.'; return; }
+      csvTotalMs = csvRows[csvRows.length - 1].t;
+      document.getElementById('playhead').max = csvTotalMs;
+      document.getElementById('phEnd').textContent = (csvTotalMs / 1000).toFixed(1) + 's';
+      document.getElementById('csvStatus').textContent = `Loaded ${csvRows.length} rows — ${(csvTotalMs / 1000).toFixed(2)}s duration`;
+      csvStartTime = null;
+      csvMode = true;
+      drawCSVChart();
+    }
+
+    function stopCSV() {
+      csvStartTime = null;
+      csvMode = false;
+      setState('normal');
+      document.getElementById('csvStatus').textContent = 'Stopped.';
+    }
+
+    function seekCSV(v) {
+      if (!csvRows.length) return;
+      csvStartTime = performance.now() - +v;
+    }
+
+    function interpCSV(elapsedMs) {
+      const t = elapsedMs % csvTotalMs;
+      document.getElementById('playhead').value = t;
+      for (let i = 0; i < csvRows.length - 1; i++) {
+        if (t >= csvRows[i].t && t <= csvRows[i + 1].t) {
+          const f = (t - csvRows[i].t) / (csvRows[i + 1].t - csvRows[i].t);
+          bpm = Math.round(csvRows[i].bpm + f * (csvRows[i + 1].bpm - csvRows[i].bpm));
+          sysBP = Math.round(csvRows[i].bp + f * (csvRows[i + 1].bp - csvRows[i].bp));
+          contractility = csvRows[i].con + f * (csvRows[i + 1].con - csvRows[i].con);
+          document.getElementById('bpmBig').textContent = bpm;
+          document.getElementById('bpmRing').textContent = bpm;
+          document.getElementById('hrS').value = bpm;
+          document.getElementById('hrV').textContent = bpm;
+          document.getElementById('bpS').value = sysBP;
+          document.getElementById('bpV').textContent = sysBP;
+          const cp = Math.round(contractility * 100);
+          document.getElementById('conS').value = cp;
+          document.getElementById('conV').textContent = cp;
+          break;
+        }
+      }
+    }
+
+    function drawCSVChart() {
+      const cc = document.getElementById('csvChart');
+      const cw = cc.offsetWidth || 860;
+      cc.width = cw; cc.height = 130;
+      const cx2 = cc.getContext('2d');
+      cx2.clearRect(0, 0, cw, 130);
+      if (!csvRows.length) return;
+
+      const minB = Math.min(...csvRows.map(r => r.bpm)) - 5;
+      const maxB = Math.max(...csvRows.map(r => r.bpm)) + 5;
+      const pad = 20;
+
+      // Grid
+      cx2.strokeStyle = 'rgba(255,255,255,.05)'; cx2.lineWidth = .5;
+      for (let y = pad; y < 130 - pad; y += (130 - pad * 2) / 4) {
+        cx2.beginPath(); cx2.moveTo(pad, y); cx2.lineTo(cw - pad, y); cx2.stroke();
+      }
+
+      // BPM line
+      cx2.beginPath();
+      cx2.strokeStyle = '#34d399'; cx2.lineWidth = 2; // var(--green)
+      cx2.shadowColor = 'rgba(52,211,153,.5)'; cx2.shadowBlur = 8;
+      csvRows.forEach((r, i) => {
+        const x = pad + (r.t / csvTotalMs) * (cw - pad * 2);
+        const y = (130 - pad) - ((r.bpm - minB) / (maxB - minB)) * (130 - pad * 2);
+        i === 0 ? cx2.moveTo(x, y) : cx2.lineTo(x, y);
+      });
+      cx2.stroke();
+      cx2.shadowBlur = 0;
+
+      // BP line (faint)
+      if (csvRows[0].bp) {
+        const minP = Math.min(...csvRows.map(r => r.bp)) - 10;
+        const maxP = Math.max(...csvRows.map(r => r.bp)) + 10;
+        cx2.beginPath();
+        cx2.strokeStyle = 'rgba(248,113,113,.4)'; cx2.lineWidth = 1; // faint red
+        csvRows.forEach((r, i) => {
+          const x = pad + (r.t / csvTotalMs) * (cw - pad * 2);
+          const y = (130 - pad) - ((r.bp - minP) / (maxP - minP)) * (130 - pad * 2);
+          i === 0 ? cx2.moveTo(x, y) : cx2.lineTo(x, y);
+        });
+        cx2.stroke();
+      }
+
+      // Labels
+      cx2.fillStyle = '#6b7fa0'; cx2.font = '10px "Inter",sans-serif'; // var(--t-3)
+      cx2.fillText('BPM', pad + 2, pad + 10);
+      cx2.fillStyle = '#3d4f6e'; // var(--t-4)
+      cx2.fillText(Math.round(maxB), 2, pad + 4);
+      cx2.fillText(Math.round(minB), 2, 130 - pad + 4);
+    }
+
+    // ═══════════════════════════════════════════
+    //  CARDIAC CYCLE HELPERS
+    // ═══════════════════════════════════════════
+    const SYS_END = 0.38;
+
+    function ease(t) { return -(Math.cos(Math.PI * t) - 1) / 2; }
+
+    function getBeat() {
+      if (heartPhase < SYS_END) {
+        const t = heartPhase / SYS_END;
+        return t < 0.5 ? ease(t / 0.5) : ease((1 - (t - 0.5) / 0.5));
+      }
+      const t = (heartPhase - SYS_END) / (1 - SYS_END);
+      return 0.06 * Math.sin(t * Math.PI);
+    }
+
+    // ═══════════════════════════════════════════
+    //  DRAW FULL PHOTOREALISTIC HEART
+    // ═══════════════════════════════════════════
+    function drawHeartFull(ts) {
+      hx.clearRect(0, 0, W, H);
+
+      const beat = getBeat() * contractility;
+      const isSys = heartPhase < SYS_END;
+      const ss = isSys ? Math.max(0, (heartPhase / SYS_END - .06) / .44) : 0;
+      const scale = 1 - beat * 0.06;
+
+      // Ambient glow
+      const ag = hx.createRadialGradient(CX, CY, 20, CX, CY, 220);
+      ag.addColorStop(0, `rgba(120,0,0,${0.08 + beat * 0.12})`);
+      ag.addColorStop(1, 'rgba(0,0,0,0)');
+      hx.fillStyle = ag; hx.fillRect(0, 0, W, H);
+
+      drawVessels(beat, isSys, ss, scale);
+      drawMuscleCrossSection(beat, isSys, ss, scale, ts);
+      drawInternalChambers(beat, isSys, ss, scale);
+      drawInternalDetails(beat, isSys, ss, scale);
+      drawAllValves(beat, isSys, ss, scale);
+      drawBloodParticles(beat, isSys, ss, ts);
+      drawSurfaceSheen(beat, scale);
+      drawAnatomyLabels();
+      updatePressures(beat, isSys, ss);
+    }
+
+    // ────── VESSELS ──────
+    function drawVessels(beat, isSys, ss, s) {
+      hx.save();
+
+      // SVC
+      drawVessel([[285, 55], [292, 90], [296, 130], [293, 155]], 16, '#2A0050', '#5A1080', 0);
+      // IVC
+      drawVessel([[293, 370], [298, 410], [292, 440], [280, 460]], 15, '#2A0050', '#5A1080', 0);
+      // Pulm artery left
+      drawVessel([[178, 128], [155, 95], [130, 78], [100, 72]], 20, '#5A1090', '#9B40CC', isSys ? ss * beat * 2 : 0);
+      // Pulm artery right
+      drawVessel([[185, 122], [210, 92], [248, 82], [302, 80]], 18, '#5A1090', '#9B40CC', isSys ? ss * beat * 2 : 0);
+      // Pulm veins
+      drawVessel([[155, 178], [128, 158], [105, 145], [80, 138]], 14, '#7B0000', '#BB2222', 0);
+      drawVessel([[160, 205], [135, 190], [110, 185], [82, 192]], 13, '#7B0000', '#BB2222', 0);
+
+      // Aorta
+      const aP = isSys ? ss * beat * 4 : 0;
+      hx.save();
+      // Ascending
+      const ag = hx.createLinearGradient(170, 80, 220, 40);
+      ag.addColorStop(0, '#AA1111'); ag.addColorStop(1, '#FF4444');
+      strokePath([[195, 130], [185, 80], [192, 48], [210, 28], [228, 18], [252, 24], [268, 46], [272, 78], [258, 112]],
+        22 + aP, ag, 16 + aP * 4);
+      // Descending
+      strokePath([[268, 46], [312, 58], [322, 120], [315, 205], [300, 295], [290, 380], [278, 440]],
+        19, '#CC1111', 12);
+      hx.restore();
+
+      hx.restore();
+    }
+
+    function drawVessel(pts, w, c1, c2, pulse) {
+      const gr = hx.createLinearGradient(pts[0][0], pts[0][1], pts[pts.length - 1][0], pts[pts.length - 1][1]);
+      gr.addColorStop(0, c1); gr.addColorStop(1, c2);
+      strokePath(pts, w + pulse, gr, 8 + pulse * 3);
+    }
+
+    function strokePath(pts, lw, style, blur) {
+      hx.save();
+      hx.lineWidth = lw; hx.strokeStyle = style;
+      hx.shadowColor = typeof style === 'string' ? style : '#FF4444';
+      hx.shadowBlur = blur; hx.lineCap = 'round'; hx.lineJoin = 'round';
+      hx.beginPath(); hx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) hx.lineTo(pts[i][0], pts[i][1]);
+      hx.stroke(); hx.restore();
+    }
+
+    // ────── OUTER MUSCLE CROSS-SECTION ──────
+    function heartPath(sc) {
+      const f = sc || 1;
+      hx.save();
+      hx.translate(CX, CY); hx.scale(f, f); hx.translate(-CX, -CY);
+      hx.beginPath();
+      hx.moveTo(CX - 8, CY + 148);
+      hx.bezierCurveTo(CX - 82, CY + 85, CX - 125, CY + 32, CX - 113, CY - 35);
+      hx.bezierCurveTo(CX - 102, CY - 88, CX - 60, CY - 100, CX - 18, CY - 78);
+      hx.bezierCurveTo(CX + 5, CY - 64, CX + 16, CY - 54, CX + 20, CY - 46);
+      hx.bezierCurveTo(CX + 26, CY - 56, CX + 36, CY - 72, CX + 62, CY - 78);
+      hx.bezierCurveTo(CX + 98, CY - 82, CX + 118, CY - 50, CX + 118, CY + 2);
+      hx.bezierCurveTo(CX + 118, CY + 55, CX + 82, CY + 106, CX + 30, CY + 135);
+      hx.bezierCurveTo(CX + 14, CY + 144, CX + 2, CY + 150, CX - 8, CY + 148);
+      hx.closePath();
+      hx.restore();
+    }
+
+    function drawMuscleCrossSection(beat, isSys, ss, s, ts) {
+      hx.save();
+      // OUTER shadow
+      hx.shadowColor = 'rgba(0,0,0,.85)'; hx.shadowBlur = 35; hx.shadowOffsetX = 10; hx.shadowOffsetY = 14;
+      heartPath(s);
+      const bg = hx.createRadialGradient(CX - 25, CY - 25, 15, CX + 10, CY + 20, 200);
+      bg.addColorStop(0, '#6A1A1A');
+      bg.addColorStop(0.35, '#581010');
+      bg.addColorStop(0.7, '#420A0A');
+      bg.addColorStop(1, '#2A0505');
+      hx.fillStyle = bg; hx.fill();
+      hx.shadowColor = 'transparent'; hx.shadowBlur = 0; hx.shadowOffsetX = 0; hx.shadowOffsetY = 0;
+
+      // MUSCLE texture — fibrous streaks
+      heartPath(s); hx.clip();
+
+      // fibres
+      for (let i = 0; i < 14; i++) {
+        const a = (i / 14) * Math.PI * 2 + ts * 0.0003;
+        const r = 55 + i * 10;
+        hx.save(); hx.translate(CX, CY); hx.rotate(a);
+        const lg = hx.createLinearGradient(0, -r, 0, -r - 30);
+        lg.addColorStop(0, 'rgba(100,20,20,0)');
+        lg.addColorStop(0.5, `rgba(60,8,8,${0.15 + i * 0.01})`);
+        lg.addColorStop(1, 'rgba(100,20,20,0)');
+        hx.strokeStyle = lg; hx.lineWidth = 1.5;
+        hx.beginPath(); hx.moveTo(0, -r); hx.lineTo(0, -r - 28); hx.stroke();
+        hx.restore();
+      }
+
+      // CROSS-SECTION CUT surface (the flat inner wall)
+      // Right half — cut reveals chambers
+      hx.fillStyle = 'rgba(0,0,0,.55)';
+      hx.beginPath();
+      hx.moveTo(CX - 8, CY - 80);
+      hx.bezierCurveTo(CX + 5, CY - 70, CX + 15, CY - 40, CX + 18, CY);
+      hx.bezierCurveTo(CX + 15, CY + 55, CX + 8, CY + 120, CX - 8, CY + 148);
+      hx.bezierCurveTo(CX + 50, CY + 110, CX + 108, CY + 55, CX + 108, CY + 5);
+      hx.bezierCurveTo(CX + 108, CY - 42, CX + 90, CY - 72, CX + 60, CY - 75);
+      hx.bezierCurveTo(CX + 38, CY - 68, CX + 24, CY - 58, CX + 18, CY);
+      hx.closePath();
+
+      // The "cut" interior wall shading
+      const cg = hx.createLinearGradient(CX - 10, CY - 80, CX + 120, CY + 80);
+      cg.addColorStop(0, 'rgba(30,5,5,.7)');
+      cg.addColorStop(0.5, 'rgba(15,2,2,.4)');
+      cg.addColorStop(1, 'rgba(30,5,5,.65)');
+      hx.fillStyle = cg; hx.fill();
+
+      // muscle wall thickness ring
+      heartPath(s);
+      hx.strokeStyle = 'rgba(80,15,15,.9)'; hx.lineWidth = 4; hx.stroke();
+      // highlight top-left
+      const hl = hx.createRadialGradient(CX - 60, CY - 65, 5, CX - 40, CY - 45, 100);
+      hl.addColorStop(0, 'rgba(255,150,150,.09)');
+      hl.addColorStop(1, 'rgba(0,0,0,0)');
+      hx.fillStyle = hl; hx.fill();
+
+      hx.restore();
+    }
+
+    // ────── INTERNAL CHAMBERS ──────
+    function drawInternalChambers(beat, isSys, ss, s) {
+      hx.save();
+      heartPath(s); hx.clip();
+
+      const lvSc = isSys ? 1 - ss * beat * 0.22 : 1 + (heartPhase - SYS_END) / (1 - SYS_END) * 0.1;
+      const rvSc = isSys ? 1 - ss * beat * 0.16 : 1 + (heartPhase - SYS_END) / (1 - SYS_END) * 0.08;
+      const laSc = isSys ? 0.92 + ss * 0.05 : 1;
+      const raSc = isSys ? 0.92 + ss * 0.05 : 1;
+
+      // ── RIGHT ATRIUM (upper right, deoxygenated deep blue-purple) ──
+      hx.save();
+      hx.translate(CX + 68, CY - 42); hx.scale(raSc, raSc); hx.translate(-CX - 68, -CY + 42);
+      hx.beginPath();
+      hx.ellipse(CX + 68, CY - 42, 48, 40, 0.25, 0, Math.PI * 2);
+      const raG = hx.createRadialGradient(CX + 62, CY - 45, 4, CX + 68, CY - 42, 48);
+      raG.addColorStop(0, 'rgba(75,10,120,.92)');
+      raG.addColorStop(0.6, 'rgba(45,5,80,.88)');
+      raG.addColorStop(1, 'rgba(25,2,45,.82)');
+      hx.fillStyle = raG; hx.fill();
+      // inner sheen
+      hx.strokeStyle = 'rgba(100,30,160,.3)'; hx.lineWidth = 2; hx.stroke();
+      hx.restore();
+
+      // ── RIGHT VENTRICLE (lower right, crescent) ──
+      hx.save();
+      hx.translate(CX + 55, CY + 52); hx.scale(rvSc, rvSc); hx.translate(-CX - 55, -CY - 52);
+      hx.beginPath();
+      hx.moveTo(CX + 18, CY - 8);
+      hx.bezierCurveTo(CX + 42, CY - 18, CX + 92, CY + 5, CX + 102, CY + 42);
+      hx.bezierCurveTo(CX + 108, CY + 85, CX + 80, CY + 122, CX + 22, CY + 125);
+      hx.bezierCurveTo(CX + 4, CY + 118, CX - 4, CY + 88, CX + 4, CY + 32);
+      hx.bezierCurveTo(CX + 9, CY + 8, CX + 14, CY - 2, CX + 18, CY - 8);
+      const rvG = hx.createRadialGradient(CX + 62, CY + 55, 8, CX + 64, CY + 60, 60);
+      rvG.addColorStop(0, 'rgba(95,15,155,.9)');
+      rvG.addColorStop(0.55, 'rgba(60,8,100,.88)');
+      rvG.addColorStop(1, 'rgba(35,4,65,.8)');
+      hx.fillStyle = rvG; hx.fill();
+      hx.strokeStyle = 'rgba(90,20,150,.35)'; hx.lineWidth = 2; hx.stroke();
+      hx.restore();
+
+      // ── LEFT ATRIUM (upper left, oxygenated) ──
+      hx.save();
+      hx.translate(CX - 38, CY - 50); hx.scale(laSc, laSc); hx.translate(-CX + 38, -CY + 50);
+      hx.beginPath();
+      hx.ellipse(CX - 38, CY - 50, 56, 42, -0.15, 0, Math.PI * 2);
+      const laG = hx.createRadialGradient(CX - 32, CY - 52, 5, CX - 38, CY - 50, 56);
+      laG.addColorStop(0, 'rgba(200,28,28,.92)');
+      laG.addColorStop(0.5, 'rgba(150,12,12,.88)');
+      laG.addColorStop(1, 'rgba(95,5,5,.82)');
+      hx.fillStyle = laG; hx.fill();
+      hx.strokeStyle = 'rgba(200,40,40,.25)'; hx.lineWidth = 2; hx.stroke();
+      hx.restore();
+
+      // ── LEFT VENTRICLE (lower left, main pump) ──
+      hx.save();
+      hx.translate(CX - 42, CY + 52); hx.scale(lvSc, lvSc); hx.translate(-CX + 42, -CY - 52);
+      hx.beginPath();
+      hx.moveTo(CX - 8, CY - 18);
+      hx.bezierCurveTo(CX - 32, CY - 22, CX - 92, CY + 12, CX - 98, CY + 58);
+      hx.bezierCurveTo(CX - 102, CY + 100, CX - 72, CY + 136, CX - 24, CY + 140);
+      hx.bezierCurveTo(CX - 4, CY + 136, CX + 12, CY + 124, CX + 16, CY + 100);
+      hx.bezierCurveTo(CX + 22, CY + 52, CX + 12, CY + 8, CX - 8, CY - 18);
+      const lvG = hx.createRadialGradient(CX - 52, CY + 58, 10, CX - 48, CY + 64, 78);
+      lvG.addColorStop(0, 'rgba(230,38,38,.95)');
+      lvG.addColorStop(0.4, 'rgba(185,15,15,.9)');
+      lvG.addColorStop(0.8, 'rgba(130,6,6,.85)');
+      lvG.addColorStop(1, 'rgba(80,2,2,.78)');
+      hx.fillStyle = lvG; hx.fill();
+      hx.strokeStyle = 'rgba(210,40,40,.3)'; hx.lineWidth = 2; hx.stroke();
+      hx.restore();
+
+      // ── INTER-VENTRICULAR SEPTUM ──
+      hx.beginPath();
+      hx.moveTo(CX + 15, CY - 52);
+      hx.bezierCurveTo(CX + 6, CY - 4, CX + 2, CY + 55, CX - 2, CY + 138);
+      hx.strokeStyle = 'rgba(15,3,3,.85)'; hx.lineWidth = 10; hx.stroke();
+      hx.strokeStyle = 'rgba(70,10,10,.6)'; hx.lineWidth = 3; hx.stroke();
+      const sg = hx.createLinearGradient(CX + 15, CY - 52, CX - 2, CY + 138);
+      sg.addColorStop(0, 'rgba(110,20,20,.4)');
+      sg.addColorStop(1, 'rgba(110,20,20,0)');
+      hx.strokeStyle = sg; hx.lineWidth = 1.5; hx.stroke();
+
+      hx.restore();
+    }
+
+    // ────── PAPILLARY / CHORDAE / TRABEC ──────
+    function drawInternalDetails(beat, isSys, ss, s) {
+      hx.save(); heartPath(s); hx.clip();
+
+      // Papillary muscles — LV
+      const pp = [[CX - 58, CY + 84, 9, 15, 0.3], [CX - 78, CY + 62, 8, 13, -0.2]];
+      pp.forEach(([x, y, rx, ry, ang]) => {
+        hx.beginPath(); hx.ellipse(x, y, rx, ry, ang, 0, Math.PI * 2);
+        const pg = hx.createRadialGradient(x, y - 3, 2, x, y, ry);
+        pg.addColorStop(0, 'rgba(140,25,25,.9)');
+        pg.addColorStop(1, 'rgba(80,8,8,.7)');
+        hx.fillStyle = pg; hx.fill();
+        // highlight
+        hx.beginPath(); hx.ellipse(x - 2, y - 3, rx * .45, ry * .3, ang, 0, Math.PI * 2);
+        hx.fillStyle = 'rgba(200,80,80,.18)'; hx.fill();
+      });
+
+      // Chordae tendineae
+      const chordPairs = [
+        [CX - 58, CY + 68, CX - 35, CY + 25], [CX - 58, CY + 68, CX - 18, CY + 22],
+        [CX - 78, CY + 48, CX - 28, CY + 24], [CX - 78, CY + 48, CX - 50, CY + 22]
+      ];
+      hx.strokeStyle = 'rgba(190,90,90,.6)'; hx.lineWidth = 1.2;
+      chordPairs.forEach(([x1, y1, x2, y2]) => {
+        hx.beginPath(); hx.moveTo(x1, y1);
+        hx.bezierCurveTo(x1, y1 - 12, x2, y2 + 15, x2, y2);
+        hx.stroke();
+      });
+
+      // Trabeculae carneae
+      const trabeculae = [
+        [CX - 85, CY + 28, CX - 74, CY + 54], [CX - 90, CY + 56, CX - 75, CY + 84],
+        [CX - 80, CY + 104, CX - 64, CY + 128]
+      ];
+      hx.strokeStyle = 'rgba(85,10,10,.65)'; hx.lineWidth = 3;
+      trabeculae.forEach(([x1, y1, x2, y2]) => {
+        hx.beginPath(); hx.moveTo(x1, y1);
+        hx.bezierCurveTo(x1 + 10, y1 + 5, x2 - 6, y2 - 8, x2, y2);
+        hx.stroke();
+      });
+
+      // RV trabeculae (moderator band)
+      hx.strokeStyle = 'rgba(70,5,90,.7)'; hx.lineWidth = 4;
+      hx.beginPath(); hx.moveTo(CX + 62, CY + 45); hx.bezierCurveTo(CX + 58, CY + 75, CX + 40, CY + 90, CX + 30, CY + 110); hx.stroke();
+
+      // Muscle fibre texture inside LV
+      for (let i = 0; i < 6; i++) {
+        hx.strokeStyle = `rgba(90,12,12,${0.2 + i * .04})`; hx.lineWidth = 1.5;
+        hx.beginPath();
+        const y0 = CY + 20 + i * 18, xL = CX - 88 + i * 4, xR = CX - 18 - i * 3;
+        hx.moveTo(xL, y0); hx.bezierCurveTo(xL + 15, y0 - 4, xR - 15, y0 - 2, xR, y0); hx.stroke();
+      }
+
+      hx.restore();
+    }
+
+    // ────── VALVES ──────
+    function drawAllValves(beat, isSys, ss, s) {
+      hx.save(); heartPath(s); hx.clip();
+
+      const mvO = !isSys;
+      const avO = isSys && ss > 0.1;
+      const tvO = !isSys;
+      const pvO = isSys && ss > 0.1;
+
+      // Mitral (bicuspid)
+      drawRealisticValve(hx, CX - 20, CY + 20, 24, mvO ? 0.92 : 0.04, '#CC3333', '#FF8888', 2, 'mv');
+      // Aortic (tricuspid semilunar)
+      drawRealisticValve(hx, CX - 6, CY - 50, 20, avO ? 0.88 : 0.04, '#FF4444', '#FF9999', 3, 'av');
+      // Tricuspid
+      drawRealisticValve(hx, CX + 50, CY + 16, 22, tvO ? 0.88 : 0.04, '#9030C0', '#CF7FFF', 3, 'tv');
+      // Pulmonary
+      drawRealisticValve(hx, CX + 28, CY - 50, 17, pvO ? 0.82 : 0.04, '#7020A0', '#B055DD', 3, 'pv');
+
+      hx.restore();
+    }
+
+    function drawRealisticValve(ctx, x, y, r, open, c1, c2, n, name) {
+      const hl = (highlighted === name);
+      ctx.save();
+      // valve annulus
+      ctx.beginPath(); ctx.arc(x, y, r + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = hl ? c2 : c1; ctx.lineWidth = hl ? 3 : 2.5;
+      ctx.shadowColor = c2; ctx.shadowBlur = hl ? 20 : 10; ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // leaflets
+      for (let i = 0; i < n; i++) {
+        const ang = (i / n) * Math.PI * 2;
+        const w = r * (1 - open * 0.88) * 0.85;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+        ctx.beginPath(); ctx.ellipse(0, -r * 0.28, w * 0.52, r * 0.58, 0, 0, Math.PI * 2);
+        const lg = ctx.createRadialGradient(w * .15, -r * .2, 1, 0, -r * .28, r * .65);
+        lg.addColorStop(0, c2 + 'DD'); lg.addColorStop(0.5, c1 + 'AA'); lg.addColorStop(1, c1 + '44');
+        ctx.fillStyle = lg; ctx.fill();
+        // leaflet edge
+        ctx.strokeStyle = c2 + '66'; ctx.lineWidth = 1; ctx.stroke();
+        // central highlight
+        ctx.beginPath(); ctx.ellipse(w * .05, -r * .22, w * .22, r * .2, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,.1)'; ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    // ────── BLOOD PARTICLES ──────
+    let particles = [];
+    function initParticles() {
+      particles = [];
+      for (let i = 0; i < 80; i++) particles.push(mkParticle());
+    }
+
+    function mkParticle() {
+      const types = [
+        { tp: 'lv_ej', c: '#FF3333', ox: CX - 42, oy: CY + 55 },
+        { tp: 'rv_ej', c: '#9B30C0', ox: CX + 62, oy: CY + 48 },
+        { tp: 'la_fi', c: '#CC2222', ox: CX - 38, oy: CY - 82 },
+        { tp: 'ra_fi', c: '#5A1080', ox: CX + 68, oy: CY - 82 },
+      ];
+      const t = types[Math.floor(Math.random() * types.length)];
+      return {
+        ...t, life: Math.random(), sp: 0.7 + Math.random() * 1.5,
+        sz: 1.5 + Math.random() * 2.5,
+        ox: t.ox + (Math.random() - .5) * 35,
+        oy: t.oy + (Math.random() - .5) * 35
+      };
+    }
+
+    function drawBloodParticles(beat, isSys, ss, ts) {
+      if (!particles.length) initParticles();
+      particles.forEach((p, i) => {
+        p.life += 0.01 * p.sp * (1 + beat * .8);
+        if (p.life > 1) { particles[i] = mkParticle(); return; }
+        const prog = p.life;
+        let cx2, cy2, alpha = 0;
+        if (p.tp === 'lv_ej' && isSys) {
+          cx2 = p.ox + Math.sin(prog * Math.PI) * 35 * beat;
+          cy2 = p.oy - prog * 95 * beat;
+          alpha = Math.sin(prog * Math.PI) * .85;
+        } else if (p.tp === 'rv_ej' && isSys) {
+          cx2 = p.ox - prog * 38 * beat; cy2 = p.oy - prog * 70 * beat;
+          alpha = Math.sin(prog * Math.PI) * .75;
+        } else if (p.tp === 'la_fi' && !isSys) {
+          cx2 = p.ox; cy2 = p.oy + prog * 58;
+          alpha = Math.sin(prog * Math.PI) * .65;
+        } else if (p.tp === 'ra_fi' && !isSys) {
+          cx2 = p.ox - prog * 18; cy2 = p.oy + prog * 52;
+          alpha = Math.sin(prog * Math.PI) * .65;
+        } else return;
+        if (alpha < .05) return;
+        const hex = Math.floor(alpha * 255).toString(16).padStart(2, '0');
+        hx.save();
+        hx.beginPath(); hx.arc(cx2, cy2, p.sz, 0, Math.PI * 2);
+        hx.fillStyle = p.c + hex; hx.shadowColor = p.c; hx.shadowBlur = 8;
+        hx.fill(); hx.restore();
+      });
+    }
+
+    // ────── SURFACE SHEEN ──────
+    function drawSurfaceSheen(beat, s) {
+      hx.save(); heartPath(s); hx.clip();
+      // left specular
+      const sg = hx.createRadialGradient(CX - 70, CY - 70, 4, CX - 50, CY - 50, 105);
+      sg.addColorStop(0, `rgba(255,180,180,${0.06 + beat * 0.04})`);
+      sg.addColorStop(0.5, 'rgba(200,80,80,.03)');
+      sg.addColorStop(1, 'rgba(0,0,0,0)');
+      hx.fillStyle = sg; hx.fill();
+      // right rim light
+      const rg = hx.createRadialGradient(CX + 100, CY + 30, 5, CX + 85, CY + 30, 70);
+      rg.addColorStop(0, 'rgba(100,20,20,.18)');
+      rg.addColorStop(1, 'rgba(0,0,0,0)');
+      hx.fillStyle = rg; hx.fill();
+      hx.restore();
+    }
+
+    // ────── ANATOMY LABELS ──────
+    function drawAnatomyLabels() {
+      if (!highlighted) return;
+      const map = {
+        lv: { x: CX - 95, y: CY + 68, t: 'Left Ventricle', s: 'Main pump — systemic circulation' },
+        rv: { x: CX + 92, y: CY + 65, t: 'Right Ventricle', s: 'Pumps to pulmonary circulation' },
+        la: { x: CX - 100, y: CY - 68, t: 'Left Atrium', s: 'Receives oxygenated pulm. blood' },
+        ra: { x: CX + 70, y: CY - 70, t: 'Right Atrium', s: 'Receives venous blood (SVC/IVC)' },
+        ao: { x: CX + 105, y: CY - 90, t: 'Aorta', s: 'Root ~3 cm diameter' },
+        pa: { x: CX - 38, y: CY - 115, t: 'Pulmonary Artery', s: 'Carries deoxygenated blood to lungs' },
+        mv: { x: CX - 95, y: CY + 18, t: 'Mitral Valve', s: 'Bicuspid — LA → LV' },
+        av: { x: CX - 105, y: CY - 52, t: 'Aortic Valve', s: 'Tricuspid semilunar — LV → Aorta' },
+        tv: { x: CX + 72, y: CY + 14, t: 'Tricuspid Valve', s: '3 leaflets — RA → RV' },
+        sep: { x: CX + 24, y: CY + 82, t: 'Interventricular Septum', s: 'Separates LV & RV' },
+      };
+      const lbl = map[highlighted]; if (!lbl) return;
+      hx.save();
+      hx.font = 'bold 11.5px Rajdhani,sans-serif'; hx.fillStyle = '#FF8888';
+      hx.shadowColor = '#FF0000'; hx.shadowBlur = 10;
+      hx.fillText(lbl.t, lbl.x, lbl.y);
+      hx.font = '10px Rajdhani,sans-serif'; hx.fillStyle = '#AA7070'; hx.shadowBlur = 0;
+      hx.fillText(lbl.s, lbl.x, lbl.y + 14);
+      hx.restore();
+    }
+
+    // ────── ANATOMY ITEM HOVER ──────
+    document.querySelectorAll('.aitem').forEach(el => {
+      el.addEventListener('mouseenter', () => { highlighted = el.dataset.p; });
+      el.addEventListener('mouseleave', () => { highlighted = null; });
+    });
+
+    // ────── ECG ──────
+    function getECGVal(ph) {
+      function g(x, m, s) { return Math.exp(-.5 * ((x - m) / s) ** 2); }
+      if (cardiacState === 'afib') {
+        return (Math.sin(ph * 53) * .04 + Math.sin(ph * 79) * .03) + g(ph % 1, .32 + Math.sin(ph * 4) * .06, .04) * .85;
+      }
+
+      const beatDurMs = 60000 / Math.max(bpm, 30);
+      const qtPhase = qtIntervalMs / beatDurMs;
+      const tCenter = Math.min(0.85, 0.33 + qtPhase * 0.45); // Scale T-wave position by QT interval
+
+      return g(ph, .12, .025) * .14 + g(ph, .30, .01) * -.07 + g(ph, .33, .018) * 1 + g(ph, .36, .012) * -.24 + g(ph, tCenter, .055) * .28;
+    }
+
+    function drawECG() {
+      const dpr = window.devicePixelRatio || 1;
+      const Ew = EC.width / dpr, Eh = EC.height / dpr;
+      ex.clearRect(0, 0, Ew, Eh);
+      // grid
+      ex.strokeStyle = 'rgba(0,255,100,.07)'; ex.lineWidth = .5;
+      for (let x = 0; x < Ew; x += Ew / 10) { ex.beginPath(); ex.moveTo(x, 0); ex.lineTo(x, Eh); ex.stroke(); }
+      for (let y = 0; y < Eh; y += Eh / 4) { ex.beginPath(); ex.moveTo(0, y); ex.lineTo(Ew, y); ex.stroke(); }
+      // trace
+      ex.beginPath(); ex.strokeStyle = var_get('--green') || '#00FFA3'; ex.lineWidth = 1.5;
+      ex.shadowColor = '#00FFA3'; ex.shadowBlur = 7;
+      for (let i = 0; i < ecgBuf.length; i++) {
+        const x = (i / ecgBuf.length) * Ew;
+        const y = Eh / 2 - ecgBuf[(ecgPos + i) % ecgBuf.length] * Eh * .42;
+        i === 0 ? ex.moveTo(x, y) : ex.lineTo(x, y);
+      }
+      ex.stroke();
+    }
+    function var_get(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+    // ────── PRESSURE STATS ──────
+    let psm = { lv: 120, rv: 25, la: 12, ra: 8 };
+    function updatePressures(beat, isSys, ss) {
+      const trg = isSys ? {
+        lv: Math.round(sysBP * (0.88 + ss * .22) * beat),
+        rv: Math.round(sysBP * .19 * (0.88 + ss * .16) * beat),
+        la: Math.round(8 + ss * 6), ra: Math.round(5 + ss * 5)
+      } : {
+        lv: Math.round(7 + (1 - beat) * 5), rv: 4,
+        la: Math.round(sysBP * .09), ra: Math.round(sysBP * .06)
+      };
+      const a = .1;
+      Object.keys(psm).forEach(k => { psm[k] = psm[k] * (1 - a) + trg[k] * a; });
+      document.getElementById('lvP').textContent = Math.round(psm.lv);
+      document.getElementById('rvP').textContent = Math.round(psm.rv);
+      document.getElementById('laP').textContent = Math.round(psm.la);
+      document.getElementById('raP').textContent = Math.round(psm.ra);
+
+      const pb = document.getElementById('phaseBox');
+      if (isSys && ss > .28) {
+        pb.innerHTML = '<div class="pname">Systole — Ejection</div>Ventricles contracting. Blood ejected into aorta & pulmonary artery.';
+        pb.style.borderLeftColor = '#FF3333';
+      } else if (isSys) {
+        pb.innerHTML = '<div class="pname">Systole — Isovolumetric</div>Pressure rising. All valves momentarily closed.';
+        pb.style.borderLeftColor = '#CC2222';
+      } else {
+        const dp = (heartPhase - SYS_END) / (1 - SYS_END);
+        pb.innerHTML = dp < .3
+          ? '<div class="pname">Diastole — Relaxation</div>Pressure falling. Isovolumetric relaxation phase.'
+          : '<div class="pname">Diastole — Filling</div>AV valves open. Atrial blood flows into ventricles.';
+        pb.style.borderLeftColor = '#7B2FBE';
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    //  MAIN LOOP
+    // ═══════════════════════════════════════════
+    initParticles();
+    let lastT = 0;
+
+    function loop(ts) {
+      if (!startTime) startTime = ts;
+      const elapsed = ts - startTime;
+      const dt = ts - lastT; lastT = ts;
+
+      // CSV interpolation
+      if (csvMode && csvRows.length > 1) {
+        if (!csvStartTime) csvStartTime = ts;
+        interpCSV(ts - csvStartTime);
+      }
+
+      // Auto BPM
+      tickAutoBPM(dt);
+
+      const beatDur = 60000 / bpm;
+      heartPhase = (elapsed % beatDur) / beatDur;
+
+      // ECG tick
+      const ecgSpeed = 1 / beatDur;
+      ecgPhase = (ecgPhase + ecgSpeed * 16) % 1;
+      ecgBuf[ecgPos] = getECGVal(ecgPhase);
+      ecgPos = (ecgPos + 1) % ECG_LEN;
+
+      drawHeartFull(ts);
+      drawECG();
+
+      animId = requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    // Draw CSV chart once doc ready
+    window.addEventListener('load', () => { drawCSVChart(); });
+
+    // ═══════════════════════════════════════════
+    //  DRUG SIMULATION SYNC
+    // ═══════════════════════════════════════════
+    function startDrugSync() {
+      stopDrugSync();
+      fetchDrugParams(); // immediate fetch
+      drugSyncInterval = setInterval(fetchDrugParams, 2000);
+    }
+
+    function stopDrugSync() {
+      if (drugSyncInterval) {
+        clearInterval(drugSyncInterval);
+        drugSyncInterval = null;
+      }
+      drugSyncMode = false;
+    }
+
+    function fetchDrugParams() {
+      fetch('/api/heart-params')
+        .then(r => r.json())
+        .then(data => {
+          if (data.status !== 'ok') return;
+          applyDrugParams(data);
+        })
+        .catch(() => { }); // silently fail if server not reachable
+    }
+
+    function applyDrugParams(data) {
+      // Apply heart rate
+      const hr = Math.round(data.heart_rate || 72);
+      bpm = hr;
+      document.getElementById('hrS').value = hr;
+      document.getElementById('hrV').textContent = hr;
+      document.getElementById('bpmBig').textContent = hr;
+      document.getElementById('bpmRing').textContent = hr;
+
+      // Apply systolic BP
+      const bp = Math.round(data.systolic_bp || 120);
+      sysBP = bp;
+      document.getElementById('bpS').value = bp;
+      document.getElementById('bpV').textContent = bp;
+
+      // Apply contractility
+      const con = Math.round(data.contractility || 100);
+      contractility = con / 100;
+      document.getElementById('conS').value = con;
+      document.getElementById('conV').textContent = con;
+
+      // Apply QT Interval
+      qtIntervalMs = data.qt_interval || 400;
+
+      // Update cardiac state accurately
+      let newState = 'normal';
+      if (data.cardiac_state) {
+        if (data.cardiac_state.includes('tachy')) newState = 'tachy';
+        else if (data.cardiac_state.includes('brady')) newState = 'brady';
+        else if (data.cardiac_state.includes('afib')) newState = 'afib';
+      } else {
+        if (hr > 100) newState = 'tachy';
+        else if (hr < 50) newState = 'brady';
+      }
+      cardiacState = newState;
+
+      document.querySelectorAll('.sbt').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById('st-' + newState);
+      if (btn) btn.classList.add('active');
+
+      // Update sync banner
+      document.getElementById('syncDrugName').textContent = data.drug_name || '—';
+      document.getElementById('syncDose').textContent = data.dose_mg ? `${data.dose_mg} mg` : '—';
+
+      const warnings = data.warnings || [];
+      document.getElementById('syncWarnings').textContent = warnings.length
+        ? '⚠️ ' + warnings.join(' | ')
+        : '✅ No warnings';
+    }
+
+    // Listen for postMessage from parent dashboard (iframe mode)
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'drug-sim-params') {
+        if (!drugSyncMode) {
+          setMode('drug');
+        }
+        applyDrugParams(event.data);
+      }
+    });
+
+    // Auto-detect if loaded with ?drug query param
+    if (window.location.search.includes('drug=1') || window.location.search.includes('mode=drug')) {
+      setMode('drug');
+    }
+  </script>
+</body>
+
+</html>

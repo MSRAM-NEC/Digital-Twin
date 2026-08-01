@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Drug-Heart Digital Twin — 7-layer cardiovascular simulation with anatomical heart visualization, pharmacokinetics, pharmacodynamics, and ML risk prediction.">
+    <title>Drug–Heart Digital Twin | Cardiovascular Simulation</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+    <!-- ═══ Top Navigation ═══ -->
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <div class="brand">
+                <div class="brand-icon">🫀</div>
+                <div class="brand-text">Drug–Heart <span>Digital Twin</span></div>
+            </div>
+
+            <div class="nav-tabs" id="mainTabs">
+                <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">🧬
+                    Simulation</button>
+                <button class="nav-tab" data-tab="heart" onclick="switchTab('heart')">💓 Heart Viz</button>
+            </div>
+
+            <div class="nav-right">
+                <div class="status-pill" id="statusPill">
+                    <div class="status-dot"></div>
+                    Ready
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══ Loading Overlay ═══ -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader-box">
+            <div class="loader-heart"></div>
+            <div class="loader-title">Simulating Digital Heart Twin</div>
+            <div class="loader-sub" id="loadingSub">Processing Layer 1: Drug Representation…</div>
+        </div>
+    </div>
+
+    <div class="page">
+
+        <!-- ═══ TAB 1: SIMULATION DASHBOARD ═══ -->
+        <section class="page-section active" id="sec-dashboard">
+
+            <!-- Pipeline Strip -->
+            <div class="pipeline" id="pipelineStrip">
+                <div class="pipe-node" id="p1"><span class="pipe-num">1</span>Drug Repr.</div>
+                <span class="pipe-arrow" id="a1">→</span>
+                <div class="pipe-node" id="p2"><span class="pipe-num">2</span>Targets</div>
+                <span class="pipe-arrow" id="a2">→</span>
+                <div class="pipe-node" id="p3"><span class="pipe-num">3</span>PK Model</div>
+                <span class="pipe-arrow" id="a3">→</span>
+                <div class="pipe-node" id="p4"><span class="pipe-num">4</span>PD Model</div>
+                <span class="pipe-arrow" id="a4">→</span>
+                <div class="pipe-node" id="p5"><span class="pipe-num">5</span>CV System</div>
+                <span class="pipe-arrow" id="a5">→</span>
+                <div class="pipe-node" id="p6"><span class="pipe-num">6</span>ML Predict</div>
+                <span class="pipe-arrow" id="a6">→</span>
+                <div class="pipe-node" id="p7"><span class="pipe-num">7</span>Digital Twin</div>
+            </div>
+
+            <!-- Input Panel -->
+            <div class="input-panel">
+                <div class="panel-title">💊 Simulation Parameters</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label" for="drugSelect">Drug</label>
+                        <select id="drugSelect" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="doseInput">Dose (mg)</label>
+                        <input type="number" id="doseInput" class="form-control" value="50" min="0.1" max="5000"
+                            step="0.1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="ageInput">Patient Age</label>
+                        <input type="number" id="ageInput" class="form-control" value="45" min="18" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="weightInput">Weight (kg)</label>
+                        <input type="number" id="weightInput" class="form-control" value="70" min="30" max="200">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="sexSelect">Sex</label>
+                        <select id="sexSelect" class="form-control">
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="timeInput">Simulation (hrs)</label>
+                        <input type="number" id="timeInput" class="form-control" value="48" min="1" max="168">
+                    </div>
+                    <div class="form-group" style="justify-content:center;">
+                        <div class="check-row"><input type="checkbox" id="heartDiseaseCheck"><label
+                                for="heartDiseaseCheck">Heart Disease</label></div>
+                        <div class="check-row"><input type="checkbox" id="hypertensionCheck" checked><label
+                                for="hypertensionCheck">Hypertension</label></div>
+                    </div>
+                    <div class="form-group" style="justify-content:center;">
+                        <div class="check-row"><input type="checkbox" id="diabetesCheck"><label
+                                for="diabetesCheck">Diabetes</label></div>
+                        <div class="check-row"><input type="checkbox" id="renalCheck"><label for="renalCheck">Renal
+                                Impairment</label></div>
+                    </div>
+                    <button class="btn-primary" id="btnSimulate" onclick="runSimulation()">🧬 Run Simulation</button>
+                </div>
+            </div>
+
+            <!-- ═══ Results ═══ -->
+            <div class="results" id="resultsBox">
+
+                <!-- Summary Stats -->
+                <div class="stat-strip" id="summaryCards"></div>
+
+                <!-- L1 + L2 -->
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">🧪 Drug Representation <span class="badge b1">L1</span></div>
+                            <div class="card-time" id="tL1"></div>
+                        </div>
+                        <div class="smiles-box" id="smilesDisplay"></div>
+                        <div class="props-grid" id="propsGrid"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">🎯 Target Interactions <span class="badge b2">L2</span></div>
+                            <div class="card-time" id="tL2"></div>
+                        </div>
+                        <div id="targetTableContainer" style="max-height:380px;overflow-y:auto;"></div>
+                    </div>
+                </div>
+
+                <!-- L3 -->
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">📈 Concentration Profile <span class="badge b3">L3—PK</span></div>
+                            <div class="card-time" id="tL3"></div>
+                        </div>
+                        <div class="chart-box"><canvas id="chartPK"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">💊 ADME Process <span class="badge b3">L3</span></div>
+                        </div>
+                        <div class="adme-row" id="admeFlow"></div>
+                    </div>
+                </div>
+
+                <!-- L4 -->
+                <div class="grid-2">
+                    <div class="card full">
+                        <div class="card-head">
+                            <div class="card-title">💓 Pharmacodynamic Effects <span class="badge b4">L4—PD</span></div>
+                            <div class="card-time" id="tL4"></div>
+                        </div>
+                        <div class="chart-box tall"><canvas id="chartPD"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- L5 -->
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">📟 ECG Waveform <span class="badge b5">L5—CV</span></div>
+                            <div class="card-time" id="tL5"></div>
+                        </div>
+                        <div class="chart-box"><canvas id="chartECG"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">🩸 Arterial Pressure <span class="badge b5">L5</span></div>
+                        </div>
+                        <div class="chart-box"><canvas id="chartWindkessel"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">🫁 Cardiac Output & Perfusion <span class="badge b5">L5</span></div>
+                        </div>
+                        <div class="perf-grid" id="perfusionGrid"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">⚠️ Clinical Warnings <span class="badge b5">L5</span></div>
+                        </div>
+                        <div id="warningsContainer"></div>
+                    </div>
+                </div>
+
+                <!-- L6 -->
+                <div class="card" style="margin-bottom:var(--sp-5);">
+                    <div class="card-head">
+                        <div class="card-title">🤖 ML Risk Assessment <span class="badge b6">L6—ML</span></div>
+                        <div class="card-time" id="tL6"></div>
+                    </div>
+                    <div class="pred-grid" id="predictionCards"></div>
+                </div>
+
+                <!-- L7 - Safety -->
+                <div class="card" style="margin-bottom:var(--sp-5);">
+                    <div class="card-head">
+                        <div class="card-title">🛡️ Drug Safety Score <span class="badge b7">L7—Output</span></div>
+                        <div class="card-time" id="tTotal"></div>
+                    </div>
+                    <div id="safetyMeter"></div>
+                </div>
+
+            </div><!-- /results -->
+
+        </section>
+
+        <!-- ═══ TAB 2: HEART VISUALIZATION ═══ -->
+        <section class="page-section" id="sec-heart">
+            <iframe id="heartIframe" class="heart-frame" src="" loading="lazy"></iframe>
+        </section>
+
+    </div><!-- /page -->
+
+    <footer class="footer">
+        Drug–Heart Digital Twin Simulation Engine · 7-Layer Architecture · <span class="mono">v2.0</span>
+        <br><span style="margin-top:4px;display:inline-block;">⚠️ For research/educational purposes only — not for
+            clinical use</span>
+    </footer>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+
+</html>

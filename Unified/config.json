@@ -1,0 +1,9 @@
+{
+  "name": "Sivaram",
+  "age": 19,
+  "gender": "male",
+  "height_cm": 175,
+  "weight_kg": 55,
+  "fitness_level": "Normal",
+  "resting_hr": 65
+}

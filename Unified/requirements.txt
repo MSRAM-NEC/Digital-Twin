@@ -1,0 +1,5 @@
+Flask==3.0.3
+numpy==1.26.4
+scipy==1.13.0
+rdkit==2023.9.5
+ollama==0.1.7

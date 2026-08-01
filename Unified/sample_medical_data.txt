@@ -1,0 +1,45 @@
+# Digital Twin Heart Project - Clinical Guidelines & Operational Protocol
+
+## 1. Introduction
+The Digital Twin Heart is an advanced physiological simulation platform designed to model the human cardiovascular system under various stress conditions and pharmacological interventions. It integrates multiple predictive layers: pharmacokinetics (PK), pharmacodynamics (PD), electrocardiogram (ECG) waveforms, and vital sign monitoring.
+
+## 2. Drug Profiles and Standard Dosages
+
+### 2.1 Metoprolol (Beta Blocker)
+- **Mechanism:** Selectively blocks beta-1 adrenergic receptors in the heart.
+- **Typical Dose:** 50 mg to 100 mg per day. Maximum recommended dose: 200 mg.
+- **Expected Effects:** Decreases heart rate (Negative chronotropic) and reduces contractility (Negative inotropic).
+- **Adverse Effects:** Bradycardia, hypotension, fatigue.
+
+### 2.2 Lisinopril (ACE Inhibitor)
+- **Mechanism:** Inhibits angiotensin-converting enzyme, preventing the conversion of angiotensin I to angiotensin II.
+- **Typical Dose:** 10 mg to 40 mg once daily. Maximum recommended dose: 80 mg.
+- **Expected Effects:** Lowers blood pressure through vasodilation. Decreases systemic vascular resistance (SVR).
+- **Adverse Effects:** Dry cough, hyperkalemia, renal impairment in susceptible patients.
+
+### 2.3 Amiodarone (Antiarrhythmic)
+- **Mechanism:** Prolongs phase 3 of the cardiac action potential (potassium channel blockade).
+- **Typical Dose:** 200 mg to 400 mg daily for maintenance. Maximum dose can safely be around 800 mg under extreme care.
+- **Expected Effects:** Slows heart rate and AV node conduction. Widens QRS complex and prolongs QT interval on ECG.
+- **Adverse Effects:** Pulmonary toxicity, thyroid dysfunction, liver toxicity.
+
+### 2.4 Amlodipine (Calcium Channel Blocker)
+- **Mechanism:** Inhibits calcium ion influx into vascular smooth muscle and cardiac muscle.
+- **Typical Dose:** 5 mg to 10 mg once daily.
+- **Expected Effects:** Vasodilation resulting in decreased blood pressure. Minimal effect on heart rate at typical doses.
+- **Adverse Effects:** Peripheral edema, flushing, palpitations.
+
+## 3. Machine Learning Heart Rate Prediction (Phase 2)
+The Activity Heart Rate prediction engine uses a dual-model approach:
+- **Ensemble Model:** Used for instant static heart rate point predictions based on user features (age, weight, height, resting HR).
+- **LSTM Model:** Analyzes time-series data constraints to predict the trajectory of heart rate over extended physical routines.
+
+## 4. Emergency Thresholds
+Alert conditions trigger if simulated parameters cross the following thresholds:
+- **Severe Bradycardia:** Heart Rate drops below 40 bpm.
+- **Tachycardia:** Resting Heart Rate exceeds 120 bpm.
+- **Hypertensive Crisis:** Systolic Blood Pressure > 180 mmHg or Diastolic > 120 mmHg.
+- **Hypotension:** Systolic Blood Pressure < 90 mmHg.
+
+## 5. Maintenance and Logging
+All simulation runs are ephemeral by default. The platform logs prediction drift between the AI ensemble predictions and the theoretical heart block model outputs to track ongoing patient twin accuracy.

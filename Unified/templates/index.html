@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Drug-Heart Digital Twin — 7-layer cardiovascular simulation with anatomical heart visualization, pharmacokinetics, pharmacodynamics, polypharmacy modeling, and ML risk prediction.">
+    <title>Drug–Heart Digital Twin | Cardiovascular Simulation</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+
+    <!-- ═══ Top Navigation ═══ -->
+    <nav class="topnav">
+        <div class="topnav-inner">
+            <div class="brand">
+                <div class="brand-icon">🫀</div>
+                <div class="brand-text">Drug–Heart <span>Digital Twin</span></div>
+            </div>
+
+            <div class="nav-tabs" id="mainTabs">
+                <button class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">🧬 Drug Sim</button>
+                <button class="nav-tab" data-tab="heart" onclick="switchTab('heart')">💓 Heart Viz</button>
+                <button class="nav-tab" data-tab="activity" onclick="switchTab('activity')">🏃 Activity HR</button>
+                <button class="nav-tab" data-tab="rag" onclick="switchTab('rag')">🤖 MediRAG</button>
+            </div>
+
+            <div class="nav-right">
+                <button class="btn-export-hdr" id="btnExportTop" onclick="exportSimulationReport()" style="display:none;">📥 Export Report</button>
+                <div class="status-pill" id="statusPill">
+                    <div class="status-dot"></div>
+                    Ready
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ═══ Loading Overlay ═══ -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loader-box">
+            <div class="loader-heart"></div>
+            <div class="loader-title">Simulating Digital Heart Twin</div>
+            <div class="loader-sub" id="loadingSub">Processing Layer 1: Drug Representation…</div>
+        </div>
+    </div>
+
+    <!-- Backdrop -->
+    <div class="drug-picker-backdrop" id="drugPickerBackdrop" onclick="closeDrugPicker()"></div>
+
+    <!-- Floating Panel -->
+    <div class="drug-picker-panel" id="drugPickerPanel">
+        <div class="dpp-header">
+            <span class="dpp-title">Select Drug</span>
+            <button class="dpp-close" onclick="closeDrugPicker()">✕</button>
+        </div>
+        <div class="dpp-search-wrap">
+            <span class="dpp-search-icon">🔍</span>
+            <input class="dpp-search" id="drugPickerSearch" type="text" placeholder="Search by name or category…"
+                oninput="filterDrugPicker(this.value)">
+        </div>
+        <div class="dpp-category-tabs" id="dppCategoryTabs"></div>
+        <div class="dpp-list" id="drugPickerList"></div>
+    </div>
+
+    <div class="page">
+
+        <!-- ═══ TAB 1: SIMULATION DASHBOARD ═══ -->
+        <section class="page-section active" id="sec-dashboard">
+
+            <!-- Pipeline Strip -->
+            <div class="pipeline" id="pipelineStrip">
+                <div class="pipe-node" id="p1"><span class="pipe-num">1</span>Drug Repr.</div>
+                <span class="pipe-arrow" id="a1">→</span>
+                <div class="pipe-node" id="p2"><span class="pipe-num">2</span>Targets</div>
+                <span class="pipe-arrow" id="a2">→</span>
+                <div class="pipe-node" id="p3"><span class="pipe-num">3</span>PK Model</div>
+                <span class="pipe-arrow" id="a3">→</span>
+                <div class="pipe-node" id="p4"><span class="pipe-num">4</span>PD Model</div>
+                <span class="pipe-arrow" id="a4">→</span>
+                <div class="pipe-node" id="p5"><span class="pipe-num">5</span>CV System</div>
+                <span class="pipe-arrow" id="a5">→</span>
+                <div class="pipe-node" id="p6"><span class="pipe-num">6</span>ML Predict</div>
+                <span class="pipe-arrow" id="a6">→</span>
+                <div class="pipe-node" id="p7"><span class="pipe-num">7</span>Digital Twin</div>
+            </div>
+
+            <!-- Pre-simulation real vitals widget row -->
+            <div class="stat-strip" id="vitalWidgets"
+                style="display:none; margin-bottom: 2rem; grid-auto-columns: minmax(200px, 1fr);"></div>
+
+            <!-- Input Panel -->
+            <div class="input-panel">
+                <div class="panel-title">💊 Simulation & Polypharmacy Parameters</div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label class="form-label">Primary Drug</label>
+                        <select id="drugSelect" style="display:none;"></select>
+                        <button type="button" class="drug-picker-trigger" id="drugPickerTrigger"
+                            onclick="openDrugPicker()">
+                            <span class="dpt-icon" id="dptIcon">💊</span>
+                            <span class="dpt-info">
+                                <span class="dpt-name" id="dptName">Select a drug…</span>
+                                <span class="dpt-cat" id="dptCat">Click to browse</span>
+                            </span>
+                            <span class="dpt-chevron">⌄</span>
+                        </button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="doseInput">Dose (mg)</label>
+                        <input type="number" id="doseInput" class="form-control" value="50" min="0.1" max="5000"
+                            step="0.1">
+                    </div>
+
+                    <!-- Polypharmacy Secondary Drug -->
+                    <div class="form-group">
+                        <label class="form-label" for="secondaryDrugSelect">Secondary Drug (Polypharmacy)</label>
+                        <select id="secondaryDrugSelect" class="form-control">
+                            <option value="None">-- None (Monotherapy) --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="secondaryDoseInput">Secondary Dose (mg)</label>
+                        <input type="number" id="secondaryDoseInput" class="form-control" value="0" min="0" max="5000" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="ageInput">Patient Age</label>
+                        <input type="number" id="ageInput" class="form-control" value="45" min="18" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="weightInput">Weight (kg)</label>
+                        <input type="number" id="weightInput" class="form-control" value="70" min="30" max="200">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="sexSelect">Sex</label>
+                        <select id="sexSelect" class="form-control">
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+
+                    <!-- Advanced Physiological Parameters -->
+                    <div class="form-group">
+                        <label class="form-label" for="egfrInput">eGFR (mL/min)</label>
+                        <input type="number" id="egfrInput" class="form-control" value="90" min="10" max="140" title="Renal Filtration Rate">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="potassiumInput">Potassium (mM)</label>
+                        <input type="number" id="potassiumInput" class="form-control" value="4.0" min="2.0" max="7.0" step="0.1" title="Serum Potassium Concentration">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="baselineQtcInput">Baseline QTc (ms)</label>
+                        <input type="number" id="baselineQtcInput" class="form-control" value="410" min="350" max="520" title="Baseline QTc Interval">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="timeInput">Simulation (hrs)</label>
+                        <input type="number" id="timeInput" class="form-control" value="48" min="1" max="168">
+                    </div>
+
+                    <div class="form-group" style="justify-content:center;">
+                        <div class="check-row"><input type="checkbox" id="heartDiseaseCheck"><label
+                                for="heartDiseaseCheck">Heart Disease</label></div>
+                        <div class="check-row"><input type="checkbox" id="hypertensionCheck" checked><label
+                                for="hypertensionCheck">Hypertension</label></div>
+                    </div>
+                    <div class="form-group" style="justify-content:center;">
+                        <div class="check-row"><input type="checkbox" id="diabetesCheck"><label
+                                for="diabetesCheck">Diabetes</label></div>
+                        <div class="check-row"><input type="checkbox" id="renalCheck"><label for="renalCheck">Renal Impairment</label></div>
+                    </div>
+                    <button class="btn-primary" id="btnSimulate" onclick="runSimulation()">🧬 Run Simulation</button>
+                </div>
+            </div>
+
+            <!-- ═══ Results ═══ -->
+            <div class="results" id="resultsBox">
+
+                <!-- Summary Stats -->
+                <div class="stat-strip" id="summaryCards"></div>
+
+                <!-- L1 + L2 -->
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">🧪 Drug Representation <span class="badge b1">L1</span></div>
+                            <div class="card-time" id="tL1"></div>
+                        </div>
+                        <div class="smiles-box" id="smilesDisplay"></div>
+                        <div class="props-grid" id="propsGrid"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">🎯 Target Interactions <span class="badge b2">L2</span></div>
+                            <div class="card-time" id="tL2"></div>
+                        </div>
+                        <div id="targetTableContainer" style="max-height:380px;overflow-y:auto;"></div>
+                    </div>
+                </div>
+
+                <!-- L3 -->
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">📈 Concentration Profile <span class="badge b3">L3—PK</span></div>
+                            <div class="card-time" id="tL3"></div>
+                        </div>
+                        <div class="chart-box"><canvas id="chartPK"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">💊 ADME Process <span class="badge b3">L3</span></div>
+                        </div>
+                        <div class="adme-row" id="admeFlow"></div>
+                    </div>
+                </div>
+
+                <!-- L4 -->
+                <div class="grid-2">
+                    <div class="card full">
+                        <div class="card-head">
+                            <div class="card-title">💓 Pharmacodynamic Effects <span class="badge b4">L4—PD</span></div>
+                            <div class="card-time" id="tL4"></div>
+                        </div>
+                        <div class="chart-box tall"><canvas id="chartPD"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- L5 -->
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">📟 ECG Waveform <span class="badge b5">L5—CV</span></div>
+                            <div class="card-time" id="tL5"></div>
+                        </div>
+                        <div class="chart-box"><canvas id="chartECG"></canvas></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">🩸 Arterial Pressure <span class="badge b5">L5</span></div>
+                        </div>
+                        <div class="chart-box"><canvas id="chartWindkessel"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">🫁 Cardiac Output & Perfusion <span class="badge b5">L5</span></div>
+                        </div>
+                        <div class="perf-grid" id="perfusionGrid"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-head">
+                            <div class="card-title">⚠️ Clinical Warnings <span class="badge b5">L5</span></div>
+                        </div>
+                        <div id="warningsContainer"></div>
+                    </div>
+                </div>
+
+                <!-- L6 -->
+                <div class="card" style="margin-bottom:var(--sp-5);">
+                    <div class="card-head">
+                        <div class="card-title">🤖 ML Risk Assessment <span class="badge b6">L6—ML</span></div>
+                        <div class="card-time" id="tL6"></div>
+                    </div>
+                    <div class="pred-grid" id="predictionCards"></div>
+                </div>
+
+                <!-- L7 - Safety -->
+                <div class="card" style="margin-bottom:var(--sp-5);">
+                    <div class="card-head">
+                        <div class="card-title">🛡️ Drug Safety Score <span class="badge b7">L7—Output</span></div>
+                        <div class="card-time" id="tTotal"></div>
+                    </div>
+                    <div id="safetyMeter"></div>
+                </div>
+
+            </div><!-- /results -->
+
+        </section>
+
+        <!-- ═══ TAB 2: HEART VISUALIZATION ═══ -->
+        <section class="page-section" id="sec-heart">
+            <iframe id="heartIframe" class="heart-frame" src="" loading="lazy"></iframe>
+        </section>
+
+        <!-- ═══ TAB 3: ACTIVITY HEART RATE ═══ -->
+        <section class="page-section" id="sec-activity" style="padding: 2rem;">
+            <div class="panel-title" style="margin-bottom:var(--sp-4);">🏃 Activity Heart Rate Predictor (Phase 2)</div>
+            <div class="glass-card" style="max-width: 800px; margin: 0 auto; min-height:300px;">
+                <p style="color:var(--t-3); font-size:14px; margin-bottom: 20px;">Describe an activity (e.g. "running
+                    1km", "swimming", "sleeping") and our trained ML models (XGBoost, LightGBM, Random Forest, LSTM)
+                    will predict your heart rate, providing Ollama (LLaMA 3.2) AI Insights tailored to your digital twin
+                    profile!</p>
+                <div style="display: flex; gap: 10px; margin-top: 15px;">
+                    <input type="text" id="activityInput" class="form-control" placeholder="Type activity..." style="flex:1;">
+                    <button class="btn-primary" id="btnActivityPredict" onclick="runActivityPredict()">
+                        <div class="brand-icon" style="font-size:16px;">🤖</div>Predict HR
+                    </button>
+                </div>
+                <div id="activityResult" style="margin-top: 25px; padding: 20px; border-radius: 12px; background: rgba(56,189,248,.08); border: 1px solid rgba(56,189,248,.2); display: none;">
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══ TAB 4: RAG CHATBOT ═══ -->
+        <section class="page-section" id="sec-rag" style="padding: 2rem;">
+            <div class="panel-title" style="margin-bottom:var(--sp-4);">🤖 MediRAG Assistant (Phase 3)</div>
+            <div class="glass-card" style="max-width: 800px; margin: 0 auto;">
+                <div style="margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px;">
+                    <label style="font-weight: 600; color:var(--t-2); font-size:13px;">1. Upload Knowledge Source (PDF/TXT):</label>
+                    <div style="display:flex; gap:10px; align-items:center; margin-top: 8px;">
+                        <input type="file" id="ragFileInput" multiple accept=".txt,.pdf" style="font-size: 13px;">
+                        <button class="btn-primary" onclick="uploadRagDocs()" style="font-size:13px; padding: 8px 16px;">Inject Knowledge</button>
+                        <span id="ragUploadStatus" style="font-size: 13px; font-weight: 600; color: var(--green);"></span>
+                    </div>
+                </div>
+                <div id="ragChatBox" style="height: 380px; overflow-y: auto; background: rgba(15,23,42,0.6); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; display: flex; flex-direction: column; gap: 15px;">
+                    <div style="align-self: flex-start; background: rgba(30,41,59,0.9); padding: 12px 16px; border-radius: 12px; border-bottom-left-radius: 2px; border: 1px solid rgba(255,255,255,0.08); font-size:14px; color: var(--t-2); max-width: 80%;">
+                        Hello! I am MediRAG. Upload your medical or operational documents above, and then ask me any question!
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="ragInput" class="form-control" placeholder="Ask about your documents..." style="flex:1;" onkeypress="if(event.key === 'Enter') sendRagMessage()">
+                    <button class="btn-primary" onclick="sendRagMessage()">
+                        <div class="brand-icon" style="font-size:16px;">💬</div>Send
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </div><!-- /page -->
+
+    <footer class="footer">
+        Drug–Heart Digital Twin Simulation Engine · 7-Layer Architecture · <span class="mono">v2.0</span>
+        <br><span style="margin-top:4px;display:inline-block;">⚠️ For research/educational purposes only — not for clinical use</span>
+    </footer>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+
+</html>
