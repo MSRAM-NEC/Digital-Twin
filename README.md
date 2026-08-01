@@ -1,110 +1,137 @@
-# Digital Twin Heart Prototype
+# 🫀 Digital Twin Heart (v2.0)
 
-An integrated medical AI demo platform combining a 7-layer drug–heart simulation engine, an activity-driven heart rate prediction model, live wearable metrics dashboarding, and a RAG medical assistant (MediRAG).
-
----
-
-## Workspace Architecture
-
-```
-Digital Twin/
-├── Unified/                  # Main integrated web application & baseline stack
-│   ├── unified_app.py        # Central Flask application (Phases 1, 2, 3 integrated)
-│   ├── app.py                # Standalone simulation web app
-│   ├── feature_engine.py     # Natural language activity -> feature vector converter
-│   ├── drug_vector.py        # SMILES generation & Morgan fingerprint generator
-│   ├── heart-simulation.html # Anatomical heart animation iframe with canvas renderer
-│   ├── simulation/           # 7-layer biophysical simulation engine
-│   ├── static/ & templates/  # Dashboard HTML, CSS, and JS frontend
-│   └── models/               # Pre-trained ML model artifacts (.joblib, .h5)
-│
-├── Phase 1/                  # Simulation engine standalone module
-│   ├── app.py                # Flask simulation server
-│   └── simulation/           # Pipeline, PK/PD, ECG, & Windkessel models
-│
-├── Phase 2/                  # Heart rate prediction & Telegram bot
-│   ├── app2.py               # Telegram bot and heart rate prediction server
-│   ├── tracker.py            # User interaction logger
-│   ├── drugvector.py         # SMILES vector utility
-│   └── config.json           # Baseline patient profile defaults
-│
-├── Phase 3/                  # RAG chatbot prototype
-│   └── app.py                # Streamlit PDF/TXT document Q&A assistant
-│
-├── Dashboard.py              # Wearable API fetch utility
-├── FetchAllMetrics.py        # Multi-metric polling daemon
-├── Realtime.py               # Realtime watch polling script
-└── requirements.txt          # Python dependencies
-```
+An integrated, multi-phase medical AI demo platform combining a **7-layer biophysical drug–heart simulation engine**, **polypharmacy combination modeling**, an **activity-driven heart rate prediction pipeline**, **live wearable metrics dashboarding**, and a **RAG-based medical document assistant (MediRAG)**.
 
 ---
 
-## 7-Layer Simulation Pipeline
+## 🌟 Key Features
+
+- **7-Layer Biophysical Simulation Engine**:
+  - **L1 Drug Representation**: SMILES generation and Morgan molecular fingerprints.
+  - **L2 Target Occupancy**: Dynamic binding models for $\text{hERG}$, $\text{Na}_{\text{v}}1.5$, $\text{Ca}_{\text{v}}1.2$, $\beta_1$, $\text{ACE}$, and $\text{AT}_1$.
+  - **L3 Pharmacokinetics (ADME)**: ODE-based 1-compartment and 2-compartment clearance models (`scipy.integrate.solve_ivp`).
+  - **L4 Pharmacodynamics**: Hill equation $E_{\text{max}}$ saturating effect models with toxicity thresholds.
+  - **L5 Cardiovascular Model**: Arterial Windkessel pressure dynamics and synthetic 12-lead ECG synthesis.
+  - **L6 ML Risk Assessment**: Arrhythmia risk, cardiac event probability, and therapeutic effectiveness scoring.
+  - **L7 Digital Twin Visualization**: Interactive canvas heart contraction and safety score meters.
+- **Polypharmacy & Combination Therapy**: Simulates additive ion channel blockade and synergistic arrhythmia risk when administering two drugs concurrently.
+- **Patient Physiology Controls**: Customize patient eGFR (renal clearance), Serum Potassium ($\text{K}^+$ electrolyte sensitivity), and Baseline QTc.
+- **Activity Heart Rate Predictor**: Trained ML ensemble (XGBoost, LightGBM, Random Forest, Keras LSTM with heteroscedastic loss) predicting heart rate response from natural language activity prompts.
+- **MediRAG Document QA**: Persistent ChromaDB vector search with HuggingFace embeddings for PDF/TXT medical knowledge ingestion.
+- **One-Click Simulation Export**: Download complete simulation data as a structured JSON report.
+
+---
+
+## 🏗️ Architecture & Execution Pipeline
 
 ```mermaid
 flowchart TD
-    A[User Input: Drug, Dose, Patient Profile] --> B[Drug Representation]
-    B --> C[Drug Target Interaction]
-    C --> D[Pharmacokinetics ADME]
-    D --> E[Pharmacodynamics Emax]
-    E --> F[Cardiovascular Dynamics]
-    F --> G[ML Risk Scoring]
-    G --> H[Interactive Visual Dashboard & 3D Heart]
+    User[User Input: Drug + Dose + Patient Profile] --> L1[1. Drug Representation & Fingerprint]
+    L1 --> L2[2. Target Binding Occupancy]
+    L2 --> L3[3. Pharmacokinetics ADME ODE Solver]
+    L3 --> L4[4. Pharmacodynamics Emax Model]
+    L4 --> L5[5. Windkessel CV Pressure & Synthetic ECG]
+    L5 --> L6[6. ML Risk & Safety Scoring]
+    L6 --> UI[7. Glassmorphism Dashboard & Dynamic Heart Canvas]
 ```
-
-1. **Drug Representation** ([`drug_representation.py`](file:///c:/Users/10a32/OneDrive/Desktop/Digital%20Twin/Phase%201/simulation/drug_representation.py)): Canonical SMILES & Morgan fingerprints.
-2. **Target Interaction** ([`drug_target.py`](file:///c:/Users/10a32/OneDrive/Desktop/Digital%20Twin/Phase%201/simulation/drug_target.py)): Binding scores for hERG, $\text{Na}_{\text{v}}1.5$, $\text{Ca}_{\text{v}}1.2$, and $\beta_1$ receptors.
-3. **Pharmacokinetics** ([`pharmacokinetics.py`](file:///c:/Users/10a32/OneDrive/Desktop/Digital%20Twin/Phase%201/simulation/pharmacokinetics.py)): ODE-based 1-compartment and 2-compartment ADME solvers (`scipy.integrate.solve_ivp`).
-4. **Pharmacodynamics** ([`pharmacodynamics.py`](file:///c:/Users/10a32/OneDrive/Desktop/Digital%20Twin/Phase%201/simulation/pharmacodynamics.py)): Hill equation $E_{\text{max}}$ model with toxicity thresholding.
-5. **Cardiovascular Model** ([`cardiovascular.py`](file:///c:/Users/10a32/OneDrive/Desktop/Digital%20Twin/Phase%201/simulation/cardiovascular.py)): Windkessel arterial pressure dynamics and synthetic ECG synthesis.
-6. **Risk Predictions** ([`ml_predictions.py`](file:///c:/Users/10a32/OneDrive/Desktop/Digital%20Twin/Phase%201/simulation/ml_predictions.py)): Arrhythmia, cardiac event risk, and therapeutic index scoring.
-7. **Visualization**: Real-time canvas heart contraction and multi-tab metric dashboards.
 
 ---
 
-## Running the Applications
+## 🚀 Quick Start Guide (For Fresh Clones)
 
-### 1. Unified Web Application (Recommended)
-Runs all features (Drug Simulation, Heart Animation, Activity HR Predictor, MediRAG Chatbot) on a single port:
+### Prerequisites
+- **Python 3.9+** installed on your system.
 
+### 1. Clone the Repository
+```bash
+git clone https://github.com/YOUR_USERNAME/Digital-Twin.git
+cd Digital-Twin
+```
+
+### 2. Install Dependencies
+Install all required packages for simulation, web server, and machine learning models:
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Environment Configuration (Optional)
+Copy `.env.example` to `.env` if you wish to customize port or token defaults:
+```bash
+cp .env.example .env
+```
+
+### 4. Launch the Unified Web Application
+Run the main web application containing all 4 interactive tabs (Drug Sim, Heart Viz, Activity HR, MediRAG):
 ```bash
 cd Unified
 python unified_app.py
 ```
-Open [http://127.0.0.1:8000](http://127.0.0.1:8000) in your browser.
+Open your browser and navigate to: **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
 
-### 2. Phase 2 Telegram Bot
-Runs the activity heart-rate prediction bot:
+---
 
-```bash
-cd "Phase 2"
-python app2.py
+## 📂 Repository Structure
+
 ```
-
-### 3. Phase 3 MediRAG Streamlit App
-Runs the document analysis chatbot UI:
-
-```bash
-cd "Phase 3"
-streamlit run app.py
+Digital Twin/
+├── Unified/                  # Main integrated web application stack
+│   ├── unified_app.py        # Flask backend server
+│   ├── feature_engine.py     # Natural language activity -> feature vector converter
+│   ├── drug_vector.py        # SMILES generation & Morgan fingerprint generator
+│   ├── heart-simulation.html # Anatomical heart canvas iframe renderer
+│   ├── simulation/           # 7-layer biophysical simulation engine
+│   ├── static/ & templates/  # Glassmorphism HTML, CSS, and JS frontend
+│   ├── models/               # Pre-trained ML model artifacts (.joblib, .h5)
+│   └── chroma_db/            # Persistent vector database for MediRAG
+│
+├── Phase 1/                  # Simulation engine standalone module
+│   ├── app.py                # Standalone simulation Flask app
+│   └── simulation/           # Biophysical pipeline modules
+│
+├── Phase 2/                  # Heart rate prediction & Telegram bot
+│   ├── app2.py               # Telegram bot server
+│   ├── tracker.py            # Interaction logger
+│   └── config.json           # Patient default configuration
+│
+├── Phase 3/                  # RAG chatbot prototype
+│   └── app.py                # Streamlit PDF/TXT Q&A assistant
+│
+├── Dashboard.py              # Wearable API fetch utility
+├── FetchAllMetrics.py        # Multi-metric polling daemon
+├── requirements.txt          # Root Python dependencies
+├── .env.example              # Environment variables template
+└── README.md                 # Project documentation
 ```
 
 ---
 
-## Key API Endpoints
+## ⚡ Optional Local Services & Fallbacks
 
-- `POST /api/simulate`: Runs 7-layer biophysical drug-heart simulation.
-- `POST /api/chat-activity`: Predicts activity-based heart rate using Karvonen formula + ML models + Ollama.
-- `GET /api/dashboard`: Serves sleep, $\text{SpO}_2$, and heart rate metrics from wearable integrations.
-- `POST /api/rag/upload`: Ingests medical documents (PDF/TXT) into Chroma vector database.
-- `POST /api/rag/chat`: Answers natural language queries over uploaded documents.
+The system is designed with **intelligent fallbacks** so it will never crash even if optional external services are missing:
+
+| Feature | Primary Provider | Graceful Fallback (No Setup Needed) |
+| :--- | :--- | :--- |
+| **LLM Insights** | Local [Ollama](https://ollama.com/) (`llama3.2`) | Structured rule-based medical summary text |
+| **Fingerprints** | `RDKit` | Synthetic deterministic binary vector hashing |
+| **Wearables** | Live Watch API | Pre-loaded mock JSON metrics (`sleep_response.json`, etc.) |
+| **MediRAG** | `ChromaDB` + `HuggingFace` | In-memory document QA |
 
 ---
 
-## Requirements
+## 📡 Key API Reference
 
-Install required dependencies:
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/` | `GET` | Main Glassmorphism Dashboard UI |
+| `/heart` | `GET` | 3D Anatomical Heart Canvas Renderer |
+| `/api/drugs` | `GET` | Retrieves catalog of 21 pre-configured drugs |
+| `/api/simulate` | `POST` | Runs 7-layer biophysical simulation (supports polypharmacy & physiology) |
+| `/api/chat-activity` | `POST` | Predicts heart rate response for activity descriptions |
+| `/api/dashboard` | `GET` | Serves sleep, $\text{SpO}_2$, and heart rate metrics |
+| `/api/rag/upload` | `POST` | Ingests PDF/TXT documents into persistent Chroma vector store |
+| `/api/rag/chat` | `POST` | Answers natural language queries over uploaded medical documents |
 
-```bash
-pip install -r requirements.txt
-```
+---
+
+## ⚠️ Disclaimer
+*This project is built for **research, demonstration, and educational purposes only**. It is not a clinically calibrated diagnostic tool or medical device.*
