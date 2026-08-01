@@ -44,7 +44,7 @@ flowchart TD
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/Digital-Twin.git
+git clone https://github.com/MSRAM-NEC/Digital-Twin.git
 cd Digital-Twin
 ```
 
