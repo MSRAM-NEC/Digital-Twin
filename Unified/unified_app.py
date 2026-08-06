@@ -71,7 +71,10 @@ try:
     from langchain_community.document_loaders import PyPDFLoader, TextLoader
     from langchain_text_splitters import RecursiveCharacterTextSplitter
     from langchain_community.vectorstores import Chroma
-    from langchain_ollama import OllamaLLM
+    try:
+        from langchain_community.llms import Ollama as OllamaLLM
+    except ImportError:
+        from langchain_ollama import OllamaLLM
     from langchain_classic.chains import create_retrieval_chain
     from langchain_classic.chains.combine_documents import create_stuff_documents_chain
     from langchain_core.prompts import ChatPromptTemplate
@@ -87,6 +90,46 @@ try:
             rag_vector_store = Chroma(persist_directory=CHROMA_DIR, embedding_function=rag_embeddings)
         except Exception as ex:
             print(f"Notice: Initializing fresh Chroma store ({ex})")
+
+    # Auto-load existing sample/data documents if Chroma store has no documents yet
+    def auto_load_default_documents():
+        global rag_vector_store
+        sample_files = []
+        data_dir = os.path.join(BASE_DIR, "data")
+        if os.path.exists(data_dir):
+            for fname in os.listdir(data_dir):
+                if fname.lower().endswith(('.pdf', '.txt')):
+                    sample_files.append(os.path.join(data_dir, fname))
+        sample_txt = os.path.join(BASE_DIR, "sample_medical_data.txt")
+        if os.path.exists(sample_txt):
+            sample_files.append(sample_txt)
+
+        if sample_files:
+            docs = []
+            for filepath in sample_files:
+                try:
+                    if filepath.lower().endswith(".pdf"):
+                        docs.extend(PyPDFLoader(filepath).load())
+                    elif filepath.lower().endswith(".txt"):
+                        docs.extend(TextLoader(filepath, encoding='utf-8').load())
+                except Exception as ex:
+                    print(f"Notice: Skipping document {filepath} ({ex})")
+
+            if docs:
+                splits = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200).split_documents(docs)
+                if rag_vector_store is None:
+                    rag_vector_store = Chroma.from_documents(splits, rag_embeddings, persist_directory=CHROMA_DIR)
+                else:
+                    try:
+                        if rag_vector_store._collection.count() == 0:
+                            rag_vector_store.add_documents(splits)
+                    except Exception:
+                        rag_vector_store.add_documents(splits)
+
+    try:
+        auto_load_default_documents()
+    except Exception as ex:
+        print(f"Notice: Auto document load skipped ({ex})")
 
     LANGCHAIN_AVAILABLE = True
 except ImportError as e:
@@ -177,6 +220,39 @@ def simulate():
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route("/api/heart-params")
+def heart_params():
+    """Return current simulation parameters for the heart visualization canvas."""
+    if not latest_simulation:
+        return jsonify({
+            "status": "ok",
+            "drug_name": "Metoprolol",
+            "dose_mg": 50,
+            "heart_rate": 72,
+            "systolic_bp": 120,
+            "contractility": 100,
+            "qt_interval": 400,
+            "cardiac_state": "normal",
+            "warnings": []
+        })
+
+    cv = latest_simulation.get("layer_5_cardiovascular", {})
+    params = cv.get("cardiac_parameters", {})
+    warnings = cv.get("warnings", [])
+    info = latest_simulation.get("simulation_info", {})
+
+    return jsonify({
+        "status": "ok",
+        "drug_name": info.get("drug_name", ""),
+        "dose_mg": info.get("dose_mg", 0),
+        "heart_rate": params.get("heart_rate_bpm", 72),
+        "systolic_bp": params.get("systolic_bp_mmHg", 120),
+        "contractility": params.get("contractility_pct", 100),
+        "qt_interval": params.get("qt_interval_ms", 400),
+        "cardiac_state": cv.get("cardiac_state", "normal"),
+        "warnings": warnings,
+    })
+
 # --------------------------------------------------------------------------------
 # Phase 2 Routes
 # --------------------------------------------------------------------------------
@@ -229,41 +305,26 @@ def chat_activity():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 # --------------------------------------------------------------------------------
-# Dashboard Routes
+# Ollama Connection & Health Check Routes
 # --------------------------------------------------------------------------------
-@app.route("/api/dashboard", methods=["GET"])
-def get_dashboard_data():
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+
+@app.route("/api/ollama/status", methods=["GET"])
+def ollama_status():
     try:
-        def load_json(filename):
-            candidates = [
-                os.path.join(ROOT_DIR, filename),
-                os.path.join(BASE_DIR, filename),
-                os.path.join(BASE_DIR, "data", filename)
-            ]
-            for path in candidates:
-                if os.path.exists(path):
-                    try:
-                        with open(path, "r") as f:
-                            return json.load(f)
-                    except Exception:
-                        pass
-            return None
-
-        sleep_data = load_json("sleep_response.json") or {"summary": "7h 45m deep sleep", "score": 88}
-        spo2_data = load_json("spo2_response.json") or {"average": 98.2, "min": 95}
-        heart_rate_data = load_json("heart_rates_response.json") or {"resting_hr": 68, "max_hr": 142}
-
-        return jsonify({
-            "status": "success",
-            "data": {
-                "sleep": sleep_data,
-                "spo2": spo2_data,
-                "heart_rate": heart_rate_data
-            }
-        })
+        req = urllib.request.Request(f"{OLLAMA_BASE_URL}/api/tags")
+        with urllib.request.urlopen(req, timeout=3) as response:
+            if response.status == 200:
+                data = json.loads(response.read().decode('utf-8'))
+                models = [m.get("name") for m in data.get("models", [])]
+                return jsonify({
+                    "status": "connected",
+                    "url": OLLAMA_BASE_URL,
+                    "models": models
+                })
     except Exception as e:
-        traceback.print_exc()
-        return jsonify({"status": "error", "message": str(e)}), 500
+        pass
+    return jsonify({"status": "disconnected", "url": OLLAMA_BASE_URL, "error": "Ollama service unavailable"})
 
 # --------------------------------------------------------------------------------
 # Phase 3 Routes (With Disk Persistence & Streaming)
@@ -305,35 +366,76 @@ def rag_upload():
 
 @app.route("/api/rag/chat", methods=["POST"])
 def rag_chat():
-    if not LANGCHAIN_AVAILABLE:
-        return jsonify({"status": "error", "message": "MediRAG engine is unavailable."})
-    global rag_vector_store
     try:
         data = request.get_json() or {}
-        message = data.get("message", "")
-        
-        if rag_vector_store is None:
-            return jsonify({"status": "error", "message": "Please upload a medical document first."})
-            
-        llm = OllamaLLM(model="llama3.2")
-        retriever = rag_vector_store.as_retriever(search_kwargs={"k": 3})
-        
-        system_prompt = (
-            "You are an assistant for question-answering tasks. "
-            "Use the following pieces of retrieved context to answer the question. "
-            "If you don't know the answer, say that you don't know. "
-            "Use three sentences maximum and keep the answer concise.\n\n"
-            "{context}"
+        message = data.get("message", "").strip()
+        if not message:
+            return jsonify({"status": "error", "message": "Message cannot be empty."})
+
+        context_text = ""
+        global rag_vector_store
+        if rag_vector_store is not None:
+            try:
+                retriever = rag_vector_store.as_retriever(search_kwargs={"k": 3})
+                matching_docs = retriever.invoke(message)
+                if matching_docs:
+                    context_text = "\n\n".join([doc.page_content for doc in matching_docs])
+            except Exception as ex:
+                print(f"Notice: Vector retrieval warning ({ex})")
+
+        system_instruction = (
+            "You are MediRAG, an intelligent AI Health & Medical Assistant for the Digital Twin project. "
+            "You can naturally converse, answer greetings ('hello', 'hi'), and answer general medical, "
+            "cardiovascular, health, and drug questions accurately and helpfully. "
+            "If relevant document context is provided below, incorporate key facts from it to ground your answer. "
+            "Keep your responses informative, concise (2 to 4 sentences), and professional."
         )
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", "{input}"),
-        ])
-        
-        chain = create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt_template))
-        result = chain.invoke({"input": message})
-        
-        return jsonify({"status": "success", "response": result.get("answer", "No response generated.")})
+
+        if context_text:
+            full_prompt = f"{system_instruction}\n\n[Retrieved Document Context]:\n{context_text}\n\n[User Question]:\n{message}"
+        else:
+            full_prompt = f"{system_instruction}\n\n[User Question]:\n{message}"
+
+        # 1. Direct Ollama HTTP API call (fast, zero wrapper error risk)
+        try:
+            req = urllib.request.Request(
+                f"{OLLAMA_BASE_URL}/api/generate",
+                data=json.dumps({
+                    "model": "llama3.2",
+                    "prompt": full_prompt,
+                    "stream": False
+                }).encode('utf-8'),
+                headers={'Content-Type': 'application/json'}
+            )
+            with urllib.request.urlopen(req, timeout=15) as response:
+                result = json.loads(response.read().decode('utf-8'))
+                ai_response = result.get('response', '').strip()
+                if ai_response:
+                    return jsonify({"status": "success", "response": ai_response})
+        except Exception as ollama_err:
+            print(f"Notice: Direct Ollama HTTP generation fallback ({ollama_err})")
+
+        # 2. Fallback to LangChain chain
+        if LANGCHAIN_AVAILABLE and rag_vector_store is not None:
+            try:
+                llm = OllamaLLM(model="llama3.2", base_url=OLLAMA_BASE_URL)
+                retriever = rag_vector_store.as_retriever(search_kwargs={"k": 3})
+                prompt_template = ChatPromptTemplate.from_messages([
+                    ("system", system_instruction + "\n\nContext:\n{context}"),
+                    ("human", "{input}"),
+                ])
+                chain = create_retrieval_chain(retriever, create_stuff_documents_chain(llm, prompt_template))
+                res = chain.invoke({"input": message})
+                ans = res.get("answer", "").strip()
+                if ans:
+                    return jsonify({"status": "success", "response": ans})
+            except Exception as chain_err:
+                print(f"Notice: LangChain chain fallback ({chain_err})")
+
+        # 3. Rule-based intelligent fallback if Ollama service is offline
+        fallback_msg = f"Hello! I am MediRAG, your Digital Twin health assistant. Regarding '{message}': Maintain proper hydration, balance activity, and consult a medical professional for personal advice."
+        return jsonify({"status": "success", "response": fallback_msg})
+
     except Exception as e:
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500

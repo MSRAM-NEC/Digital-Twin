@@ -42,71 +42,33 @@ document.addEventListener('DOMContentLoaded', init);
 
 function init() {
     loadDrugs();
-    loadDashboardData();
+    checkOllamaStatus();
 }
 
-async function loadDashboardData() {
-    try {
-        const res = await fetch('/api/dashboard');
-        const json = await res.json();
+async function checkOllamaStatus() {
+    const pill = document.getElementById('ollamaPill');
+    const dot = document.getElementById('ollamaDot');
+    const text = document.getElementById('ollamaText');
+    if (!pill || !dot || !text) return;
 
-        if (json.status === 'success' && json.data) {
-            renderDashboardWidgets(json.data);
+    try {
+        const res = await fetch('/api/ollama/status');
+        const json = await res.json();
+        if (json.status === 'connected') {
+            dot.style.background = '#10b981';
+            dot.style.boxShadow = '0 0 8px #10b981';
+            text.innerText = 'Ollama Connected';
+        } else {
+            dot.style.background = '#f59e0b';
+            dot.style.boxShadow = '0 0 8px #f59e0b';
+            text.innerText = 'Ollama Offline';
         }
     } catch (e) {
-        console.error('Error fetching dashboard data:', e);
+        dot.style.background = '#ef4444';
+        dot.style.boxShadow = '0 0 8px #ef4444';
+        text.innerText = 'Ollama Disconnected';
     } finally {
-        // Poll for updates every 15 seconds to sync with watch data automatically
-        setTimeout(loadDashboardData, 15000);
-    }
-}
-
-function renderDashboardWidgets(data) {
-    const widgetsContainer = document.getElementById('vitalWidgets');
-    if (!widgetsContainer) return;
-
-    let html = '';
-
-    // Heart Rate Summary
-    if (data.heart_rate && data.heart_rate.data && data.heart_rate.data.cumulative) {
-        const c = data.heart_rate.data.cumulative;
-        html += `<div class="stat-card c-pink">
-            <div class="stat-icon">💓</div>
-            <div class="stat-val">${c.avg}</div>
-            <div class="stat-label">Avg Daily HR</div>
-            <div class="stat-sub">Min ${c.min} / Max ${c.max}</div>
-        </div>`;
-    }
-
-    // SpO2 Summary
-    if (data.spo2 && data.spo2.data && data.spo2.data.cumulative) {
-        const bo = data.spo2.data.cumulative;
-        html += `<div class="stat-card c-blue">
-            <div class="stat-icon">📈</div>
-            <div class="stat-val">${bo.max}%</div>
-            <div class="stat-label">SpO2 Max</div>
-            <div class="stat-sub">Min ${bo.min}%</div>
-        </div>`;
-    }
-
-    // Sleep Summary
-    if (data.sleep && data.sleep.data) {
-        const sl = data.sleep.data;
-        // duration is in minutes probably? Convert to hr:min
-        const hrs = Math.floor(sl.total_duration / 60);
-        const mins = sl.total_duration % 60;
-
-        html += `<div class="stat-card c-purple">
-            <div class="stat-icon">🌙</div>
-            <div class="stat-val">${hrs}h ${mins}m</div>
-            <div class="stat-label">Total Sleep</div>
-            <div class="stat-sub">Deep: ${sl.total_deep}m | Light: ${sl.total_light}m</div>
-        </div>`;
-    }
-
-    if (html !== '') {
-        widgetsContainer.innerHTML = html;
-        widgetsContainer.style.display = 'grid'; // ensure it shows using the grid layout
+        setTimeout(checkOllamaStatus, 10000);
     }
 }
 

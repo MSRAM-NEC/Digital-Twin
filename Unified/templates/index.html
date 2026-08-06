@@ -35,6 +35,10 @@
 
             <div class="nav-right">
                 <button class="btn-export-hdr" id="btnExportTop" onclick="exportSimulationReport()" style="display:none;">📥 Export Report</button>
+                <div class="status-pill" id="ollamaPill" style="margin-right: 8px;">
+                    <div class="status-dot" id="ollamaDot"></div>
+                    <span id="ollamaText">Ollama Checking…</span>
+                </div>
                 <div class="status-pill" id="statusPill">
                     <div class="status-dot"></div>
                     Ready
@@ -91,10 +95,6 @@
                 <span class="pipe-arrow" id="a6">→</span>
                 <div class="pipe-node" id="p7"><span class="pipe-num">7</span>Digital Twin</div>
             </div>
-
-            <!-- Pre-simulation real vitals widget row -->
-            <div class="stat-strip" id="vitalWidgets"
-                style="display:none; margin-bottom: 2rem; grid-auto-columns: minmax(200px, 1fr);"></div>
 
             <!-- Input Panel -->
             <div class="input-panel">
@@ -325,7 +325,7 @@
                 </div>
                 <div id="ragChatBox" style="height: 380px; overflow-y: auto; background: rgba(15,23,42,0.6); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 15px; display: flex; flex-direction: column; gap: 15px;">
                     <div style="align-self: flex-start; background: rgba(30,41,59,0.9); padding: 12px 16px; border-radius: 12px; border-bottom-left-radius: 2px; border: 1px solid rgba(255,255,255,0.08); font-size:14px; color: var(--t-2); max-width: 80%;">
-                        Hello! I am MediRAG. Upload your medical or operational documents above, and then ask me any question!
+                        Hello! I am MediRAG, your AI Health & Medical Assistant. Feel free to ask me any general health question, or upload medical documents above for document-specific analysis!
                     </div>
                 </div>
                 <div style="display: flex; gap: 10px;">
